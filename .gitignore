@@ -45,3 +45,14 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# Added by Task Master AI
+logs
+dev-debug.log
+# Dependency directories
+.idea
+.vscode
+# OS specific
+# Task files
+tasks.json
+tasks/ 

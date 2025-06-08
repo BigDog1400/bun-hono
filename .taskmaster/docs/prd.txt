@@ -1,0 +1,323 @@
+# JSON-to-Video Processing Service - Product Requirements Document
+
+## 1. Project Overview
+
+### 1.1 Product Vision
+Develop a high-performance video generation service that processes JSON configurations to create dynamic videos using FFmpeg. The service will accept structured JSON input defining video scenes, elements, and properties, then generate professional-quality video output.
+
+### 1.2 Target Users
+- Users who require dynamic video content creation with no coding experience
+
+### 1.3 Business Goals
+- Provide programmatic video generation capabilities
+- Enable scalable video content creation
+- Support multiple video formats and resolutions
+- Deliver high-performance processing with FFmpeg
+
+## 2. Technical Requirements
+
+### 2.1 Technology Stack
+- **Runtime**: Bun.js for high-performance JavaScript execution
+- **Framework**: Hono for lightweight HTTP server
+- **Video Processing**: FFmpeg for video manipulation and encoding
+- **Audio Transcription**: OpenAI Whisper via Replicate API for speech-to-text
+- **Language**: TypeScript for type safety
+
+### 2.2 JSON Schema Structure
+The service must process JSON arrays with the following structure:
+
+```typescript
+Array<{
+  comment: string
+  resolution: string
+  quality: string
+  width: number
+  height: number
+  scenes: Array<{
+    id: string
+    "background-color": string
+    elements: Array<{
+      type: string
+      src: string
+      x?: number
+      y?: number
+    }>
+  }>
+  elements: Array<{
+    type: string
+    src?: string
+    "z-index"?: number
+    volume?: number
+    resize?: string
+    duration?: number
+    id?: string
+    settings?: {
+      style: string
+      "font-family": string
+      "font-size": number
+      "word-color": string
+      "line-color": string
+      "shadow-color": string
+      "shadow-offset": number
+      "box-color": string
+      position: string
+      "outline-color": string
+      "outline-width": number
+    }
+    language?: string
+  }>
+}>
+```
+
+### 2.3 Element Building Blocks System
+Elements are predefined, configurable building blocks that users can combine to create videos:
+
+- **Video Element**: Background videos with predefined configurations
+  - Volume control presets (muted, low, medium, high)
+  - Resize options (fit, fill, stretch, crop)
+  - Duration settings and loop options
+  
+- **Audio Element**: Scene-specific audio tracks with presets
+  - Volume level configurations
+  - Fade in/out options
+  - Audio format optimization
+  
+- **Image Element**: Static images with positioning presets
+  - Predefined position templates (center, corners, custom coordinates)
+  - Scaling options (original, fit-width, fit-height, custom)
+  - Animation presets (fade-in, slide-in, zoom)
+  
+- **Subtitle Element**: Text overlays with style templates
+  - Predefined style themes (classic, modern, cinematic, social-media)
+  - Font family collections
+  - Color scheme presets
+  - Position templates (bottom-center, top-center, custom)
+  - Auto-generation from audio using Whisper AI
+
+## 3. Functional Requirements
+
+### 3.1 Core Features
+
+#### 3.1.1 JSON Processing & Element Configuration
+- Validate incoming JSON structure against schema
+- Parse video configuration parameters
+- Extract scene and element definitions with predefined configurations
+- Apply element presets and templates based on user selections
+- Handle optional properties with intelligent defaults
+- Validate element configuration compatibility
+
+#### 3.1.2 Video Generation
+- Process multiple scenes sequentially
+- Composite video, audio, and image elements
+- Apply positioning and z-index layering
+- Generate subtitles with custom styling
+- Support custom resolutions and quality settings
+
+#### 3.1.3 FFmpeg Integration
+- Build complex FFmpeg command chains
+- Handle multiple input sources (video, audio, images)
+- Apply filters for positioning, scaling, and effects
+- Manage temporary file creation and cleanup
+- Optimize encoding parameters for quality and performance
+
+#### 3.1.4 API Endpoints
+- POST `/video/generate` - Accept JSON and return video
+- GET `/video/status/:id` - Check processing status
+- GET `/video/download/:id` - Download generated video
+- POST `/video/validate` - Validate JSON structure
+
+### 3.2 Advanced Features
+
+#### 3.2.1 Subtitle System
+- Support multiple subtitle styles (classic-progressive, etc.)
+- Custom font families and sizes
+- Color customization (text, outline, shadow, background)
+- Flexible positioning options
+- Multi-language support
+- **Automatic Caption Generation**: Integration with OpenAI Whisper via Replicate API
+  - Automatically detect audio elements that need captions during video processing
+  - Extract audio from video/audio sources internally
+  - Generate timestamped transcriptions using Whisper API
+  - Convert transcriptions to subtitle format and apply to video
+  - Support for multiple languages (English, Spanish, French, etc.)
+  - Configurable transcription accuracy and formatting
+  - Seamless integration within the video generation pipeline
+
+#### 3.2.2 Asset Management & Element Library
+- Download remote assets (images, videos, audio)
+- Cache frequently used assets and element presets
+- Validate asset formats and compatibility with element types
+- Handle asset preprocessing based on element requirements
+- **Element Template Library**:
+  - Predefined element configurations for common use cases
+  - Template validation and compatibility checking
+  - Custom element preset creation and storage
+  - Element combination recommendations
+
+#### 3.2.3 Quality Control
+- Support multiple quality presets (low, medium, high, custom)
+- Adaptive bitrate encoding
+- Resolution scaling and aspect ratio handling
+- Audio quality optimization
+
+## 4. Non-Functional Requirements
+
+### 4.1 Performance
+- Process videos up to 2 minutes in under 30 seconds
+- Support concurrent video generation (up to 5 simultaneous)
+- Memory usage optimization for large assets
+- Efficient temporary file management
+
+### 4.2 Reliability
+- Graceful error handling for invalid JSON
+- Asset download failure recovery
+- FFmpeg process monitoring and timeout handling
+- Comprehensive logging for debugging
+
+### 4.3 Scalability
+- Horizontal scaling support
+- Queue-based processing for high loads
+- Resource monitoring and limits
+- Background job processing
+
+### 4.4 Security
+- Input validation and sanitization
+- Asset URL validation and restrictions
+- Rate limiting for API endpoints
+- Secure temporary file handling
+
+## 5. API Specifications
+
+### 5.1 Video Generation Endpoint
+```
+POST /api/video/generate
+Content-Type: application/json
+
+Request Body: JSON array as specified in schema
+Response: 
+{
+  "jobId": "uuid",
+  "status": "processing",
+  "estimatedTime": "30s"
+}
+```
+
+### 5.2 Status Check Endpoint
+```
+GET /api/video/status/:jobId
+Response:
+{
+  "jobId": "uuid",
+  "status": "completed|processing|failed",
+  "progress": 85,
+  "downloadUrl": "/api/video/download/uuid" (if completed)
+}
+```
+
+## 6. Implementation Phases
+
+### Phase 1: Core Infrastructure
+- Set up Bun + Hono server
+- Implement JSON validation
+- Basic FFmpeg integration
+- Simple video generation pipeline
+
+### Phase 2: Element Building Blocks Implementation
+- **Element System Architecture**:
+  - Define element base classes and interfaces
+  - Implement predefined configuration templates
+  - Create element validation and compatibility system
+- **Core Element Types**:
+  - Video element with preset configurations
+  - Image element with positioning templates
+  - Audio element with volume presets
+  - Basic element combination logic
+
+### Phase 3: Advanced Element Features
+- **Subtitle Element System**:
+  - Predefined style templates and themes
+  - Manual subtitle configuration options
+  - **Automatic transcription integration** with Whisper AI
+- **Element Composition Engine**:
+  - Complex element layering and interaction
+  - Multi-scene element coordination
+  - Element transition and animation presets
+- **Element Library Management**:
+  - Custom element template creation
+  - Element preset sharing and import/export
+  - Asset caching optimized for element types
+
+### Phase 4: Production Readiness
+- Error handling and logging
+- Performance optimization
+- API documentation
+- Testing and quality assurance
+
+## 7. Success Metrics
+
+### 7.1 Technical Metrics
+- Video generation time < 30 seconds for 2-minute videos
+- 99.9% uptime
+- < 2GB memory usage per video generation
+- Support for 1080p and 4K resolutions
+
+### 7.2 Quality Metrics
+- Generated videos match JSON specifications 100%
+- No audio/video sync issues
+- Subtitle positioning accuracy within 5 pixels
+- Asset loading success rate > 98%
+
+## 8. Dependencies and Constraints
+
+### 8.1 External Dependencies
+- FFmpeg installation and configuration
+- Network access for remote asset downloading
+- Sufficient disk space for temporary files
+- CPU resources for video encoding
+- **Replicate API Access**: For OpenAI Whisper transcription service
+  - API key configuration
+  - Network connectivity to Replicate endpoints
+  - Rate limiting considerations
+
+### 8.2 Constraints
+- Maximum video duration: 10 minutes
+- Maximum file size: 500MB per asset
+- Supported formats: MP4, WebM for output
+- Asset formats: MP4, MP3, PNG, JPG, GIF
+
+## 9. Risk Assessment
+
+### 9.1 Technical Risks
+- FFmpeg command complexity and maintenance
+- Asset download failures and timeouts
+- Memory leaks during video processing
+- Concurrent processing resource conflicts
+- **Transcription service dependencies**:
+  - Replicate API availability and rate limits
+  - Audio quality affecting transcription accuracy
+  - Processing time for long audio files
+
+### 9.2 Mitigation Strategies
+- Comprehensive testing of FFmpeg commands
+- Retry mechanisms for asset downloads
+- Memory monitoring and cleanup procedures
+- Resource pooling and queue management
+- **Transcription reliability measures**:
+  - Fallback to manual subtitle input on API failures
+  - Audio preprocessing for optimal transcription quality
+  - Caching of transcription results
+  - Alternative transcription service integration options
+
+## 10. Future Enhancements
+
+### 10.1 Planned Features
+- Real-time video preview
+- Template system for common video types
+- Batch processing capabilities
+- Integration with cloud storage services
+
+### 10.2 Potential Integrations
+- Text-to-speech for automatic narration
+- AI-powered scene transitions
+- Dynamic content generation
+- Social media platform optimization

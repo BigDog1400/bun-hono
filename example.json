@@ -1,0 +1,199 @@
+[
+    {
+      "comment": "Dynamic Family Guy Viral Video",
+      "resolution": "custom",
+      "quality": "high",
+      "width": 1080,
+      "height": 1920,
+      "scenes": [
+        {
+          "id": "scene-0",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1Zt6PEv5jhIvRAVWRtd7eXFdErwT88w5e",
+              "x": 10,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1oueq9uQ5pW73dbTp5vuME555HuZh-s3o"
+            }
+          ]
+        },
+        {
+          "id": "scene-1",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1GCuxLK4buefGbwDk3x8LtxgaiNps0UTn",
+              "x": 500,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1JKSk6AiZ4g7_OKSBhkykiZJp0nx2DPLs"
+            }
+          ]
+        },
+        {
+          "id": "scene-2",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1Zt6PEv5jhIvRAVWRtd7eXFdErwT88w5e",
+              "x": 10,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1C-wciKL-ir9Pg2irvcYy1g2OcZ5OT2B0"
+            }
+          ]
+        },
+        {
+          "id": "scene-3",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1GCuxLK4buefGbwDk3x8LtxgaiNps0UTn",
+              "x": 500,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1ixR34AdbypNTTkcXKM2arqm5r_Up9MxI"
+            }
+          ]
+        },
+        {
+          "id": "scene-4",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1Zt6PEv5jhIvRAVWRtd7eXFdErwT88w5e",
+              "x": 10,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1gWQBXGfKbSvjPgdTMLokZUCGwk-JLpSv"
+            }
+          ]
+        },
+        {
+          "id": "scene-5",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1GCuxLK4buefGbwDk3x8LtxgaiNps0UTn",
+              "x": 500,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1LcjBSkETamoST4Dc0lyADIjCrGbDLSsu"
+            }
+          ]
+        },
+        {
+          "id": "scene-6",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1Zt6PEv5jhIvRAVWRtd7eXFdErwT88w5e",
+              "x": 10,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=135eKVc_f_9DuOhA7eYaxZ9wjSWehpOWc"
+            }
+          ]
+        },
+        {
+          "id": "scene-7",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1GCuxLK4buefGbwDk3x8LtxgaiNps0UTn",
+              "x": 500,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1ovZUlnrxecoXlv3g4nOUr-SjeeGP-Dea"
+            }
+          ]
+        },
+        {
+          "id": "scene-8",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1Zt6PEv5jhIvRAVWRtd7eXFdErwT88w5e",
+              "x": 10,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1A2iJIebBkaxdvfLJFx1QH2vomMAgX4i7"
+            }
+          ]
+        },
+        {
+          "id": "scene-9",
+          "background-color": "transparent",
+          "elements": [
+            {
+              "type": "image",
+              "src": "https://drive.google.com/uc?export=download&id=1GCuxLK4buefGbwDk3x8LtxgaiNps0UTn",
+              "x": 500,
+              "y": 1300
+            },
+            {
+              "type": "audio",
+              "src": "https://drive.google.com/uc?export=download&id=1U631n6QkoaIV-FLrLQsRkLXbG3JXjxiA"
+            }
+          ]
+        }
+      ],
+      "elements": [
+        {
+          "type": "video",
+          "src": "https://drive.google.com/uc?export=download&id=1ca1Sf5e_G70ZCdbk30ZtFx44jH9Ac3CS",
+          "z-index": -1,
+          "volume": 0.5,
+          "resize": "fit",
+          "duration": 115.32
+        },
+        {
+          "id": "q41n9kxp",
+          "type": "subtitles",
+          "settings": {
+            "style": "classic-progressive",
+            "font-family": "Luckiest Guy",
+            "font-size": 140,
+            "word-color": "#24ff03",
+            "line-color": "#FFFFFF",
+            "shadow-color": "#000000",
+            "shadow-offset": 2,
+            "box-color": "#260B1B",
+            "position": "center-center",
+            "outline-color": "#000000",
+            "outline-width": 3
+          },
+          "language": "en"
+        }
+      ]
+    }
+  ]
