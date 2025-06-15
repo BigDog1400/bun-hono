@@ -9,7 +9,7 @@ const MediaKind = z.enum(['video', 'image', 'audio']);
 const SubtitleEffect = z.enum(['none', 'outline', 'drop-shadow']);
 
 // Source object
-const Source = z.object({
+export const Source = z.object({
   id: z.string(),
   url: url,
   kind: MediaKind,
@@ -39,7 +39,7 @@ const SubtitleSpec = z.object({
 });
 
 // Block object
-const Block = z.object({
+export const Block = z.object({
   id: z.string(),
   sourceId: z.string(),
   start: seconds.default(0),
@@ -49,7 +49,7 @@ const Block = z.object({
 });
 
 // Transition object
-const Transition = z.object({
+export const Transition = z.object({
   id: z.string(),
   type: z.string(), // Could be an enum if specific transition types are predefined
   duration: seconds,

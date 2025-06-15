@@ -1,8 +1,7 @@
-import { EffectRenderer } from '../../../types';
-import { FilterGraphBuilder } from '../../../core/FilterGraphBuilder';
-import { CTClip, CTEffect } from '../../../core/CanonicalTimeline';
-import { effectRegistry } from '../../../core/PluginRegistry';
-
+import { EffectRenderer } from '../../types';
+import { FilterGraphBuilder } from '../../core/FilterGraphBuilder';
+import { CTClip, CTEffect } from '../../core/CanonicalTimeline';
+import { effectRegistry } from '../../core/PluginRegistry';
 interface FadeEffectParams {
   type: 'in' | 'out';
   duration: number; // in seconds
