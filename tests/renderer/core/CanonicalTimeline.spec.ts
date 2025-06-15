@@ -17,165 +17,131 @@ const DEFAULT_CANVAS_HEIGHT = 1080;
 // The main code now uses DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT which is 2.
 
 describe('convertToCanonicalTimeline', () => {
-  let minimalDoc: LayoutV1;
+  let minimalDoc: LayoutV1; // This will be PRD-aligned for new tests
 
   beforeEach(() => {
-    // A minimal valid LayoutV1 document
+    // A minimal valid LayoutV1 document for PRD structure
     minimalDoc = {
-      version: 'v1',
-      sources: [
-        { id: 's1', url: 'video.mp4', kind: 'video', duration: 10 },
-        { id: 's2', url: 'image.png', kind: 'image' },
-        { id: 's3', url: 'audio.mp3', kind: 'audio', duration: 15 },
-        { id: 's4', url: 'red', kind: 'color' },
-      ],
+      spec: "layout/v1", // Added spec as it's required by new schema
+      canvas: { width: 1920, height: 1080, fps: 30 }, // Added canvas as it's required
       blocks: [],
-      // transitions: [], // Optional
+      // No top-level sources: minimalDoc.sources from previous versions is removed
     };
   });
 
   test('should process an empty document (no blocks, bg, overlay)', async () => {
-    const timeline = await convertToCanonicalTimeline(minimalDoc);
+    // Minimal doc for this test already has no blocks, bg, or overlay
+    const emptyDoc: LayoutV1 = {
+      spec: "layout/v1",
+      canvas: { w: 640, h: 360, fps: 10 },
+      blocks: []
+    };
+    const timeline = await convertToCanonicalTimeline(emptyDoc);
     expect(timeline).toBeObject();
     expect(timeline.clips).toBeArrayOfSize(0);
-    expect(timeline.sources.length).toBe(minimalDoc.sources.length);
-    expect(timeline.canvasWidth).toBe(DEFAULT_CANVAS_WIDTH);
-    expect(timeline.canvasHeight).toBe(DEFAULT_CANVAS_HEIGHT);
-    expect(timeline.fps).toBe(DEFAULT_FPS);
+    expect(timeline.canvasWidth).toBe(640); // Should take from doc.canvas
+    expect(timeline.canvasHeight).toBe(360);
+    expect(timeline.fps).toBe(10);
   });
 
   test('should transfer canvas properties from doc to timeline', async () => {
-    minimalDoc.canvas = { width: 1280, height: 720, fps: 25 };
-    const timeline = await convertToCanonicalTimeline(minimalDoc);
-    // TODO: Update this test once convertToCanonicalTimeline uses doc.canvas
-    // Currently, it uses defaults. This test will fail until then.
-    // expect(timeline.canvasWidth).toBe(1280);
-    // expect(timeline.canvasHeight).toBe(720);
-    // expect(timeline.fps).toBe(25);
-
-    // Current behavior:
-    expect(timeline.canvasWidth).toBe(DEFAULT_CANVAS_WIDTH);
-    expect(timeline.canvasHeight).toBe(DEFAULT_CANVAS_HEIGHT);
-    expect(timeline.fps).toBe(DEFAULT_FPS);
-    console.warn("Test 'should transfer canvas properties': convertToCanonicalTimeline does not yet use doc.canvas. Testing against defaults.");
+    const docWithCanvas: LayoutV1 = {
+        spec: "layout/v1",
+        canvas: { width: 1280, height: 720, fps: 25, background_color: "blue" },
+        blocks: []
+    };
+    const timeline = await convertToCanonicalTimeline(docWithCanvas);
+    expect(timeline.canvasWidth).toBe(1280);
+    expect(timeline.canvasHeight).toBe(720);
+    expect(timeline.fps).toBe(25);
+    expect(timeline.canvasBackgroundColor).toBe("blue");
   });
 
+  // This describe block was for the OLD convertToCanonicalTimeline.
+  // It needs to be removed or its tests fully refactored for the new PRD-aligned structure.
+  // For now, I will comment out the entire describe block to avoid confusion,
+  // as all tests within it used the old 'sourceId' based block structure.
+  // The specific test 'should use default duration...' will be rewritten below for the new structure.
+  /*
   describe('Block Processing (Simplified based on current convertToCanonicalTimeline)', () => {
     // These tests reflect the current `convertToCanonicalTimeline` which takes `Block { sourceId, start, duration }`
     // This is different from PRD `LayoutV1.blocks[].visuals/audio`.
     // These tests will need to be updated when `convertToCanonicalTimeline` is updated.
 
     test('should process a single block with explicit start and duration', async () => {
-      const docWithSimpleBlock: LayoutV1 = {
-        ...minimalDoc,
-        blocks: [
-          // This matches the simplified Block structure convertToCanonicalTimeline currently expects
-          { id: 'b1', sourceId: 's1', start: 0, duration: 5 } as any,
-        ],
-      };
-      const timeline = await convertToCanonicalTimeline(docWithSimpleBlock);
-      expect(timeline.clips).toBeArrayOfSize(1);
-      const clip = timeline.clips[0];
-      expect(clip.id).toBe('b1');
-      expect(clip.sourceId).toBe('s1');
-      expect(clip.kind).toBe('video');
-      expect(clip.src).toBe('video.mp4');
-      expect(clip.absoluteStartTime).toBe(0);
-      expect(clip.duration).toBe(5);
-      expect(clip.zIndex).toBe(1); // First block, zIndex = 1
-      // Default visual props (current behavior)
-      expect(clip.x).toBe(0);
-      expect(clip.y).toBe(0);
-      expect(clip.width).toBe(1);
-      expect(clip.height).toBe(1);
-      expect(clip.opacity).toBe(1);
-      expect(clip.resizeMode).toBe('cover'); // default from ZodSource or CTSource
+      // ... old test logic ...
     });
 
     test('should use source duration if block duration is missing for video/audio', async () => {
-      const doc: LayoutV1 = {
-        ...minimalDoc,
-        blocks: [
-          { id: 'b_video', sourceId: 's1', start: 0 } as any, // s1 (video) duration is 10
-          { id: 'b_audio', sourceId: 's3', start: 10 } as any, // s3 (audio) duration is 15
-        ],
-      };
-      const timeline = await convertToCanonicalTimeline(doc);
-      expect(timeline.clips).toBeArrayOfSize(2);
-      expect(timeline.clips[0].duration).toBe(10); // from source s1
-      expect(timeline.clips[1].duration).toBe(15); // from source s3
+      // ... old test logic ...
     });
 
-    test('should use default duration for image/color if block and source duration are missing', async () => {
-       const doc: LayoutV1 = {
-        ...minimalDoc,
-        sources: [ // Override sources to ensure no duration for image/color
-            { id: 's_img', url: 'image.png', kind: 'image' },
-            { id: 's_clr', url: 'blue', kind: 'color' },
-        ],
-        blocks: [
-          { id: 'b_img', sourceId: 's_img', start: 0 } as any,
-          { id: 'b_clr', sourceId: 's_clr', start: 5 } as any,
-        ],
-      };
-      const timeline = await convertToCanonicalTimeline(doc);
-
-      // After fix in convertToCanonicalTimeline, both blocks should get DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT (2s)
-      expect(timeline.clips).toBeArrayOfSize(2);
-      expect(timeline.clips[0].id).toBe('b_img');
-      expect(timeline.clips[0].duration).toBe(2); // DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT from CanonicalTimeline.ts
-      expect(timeline.clips[1].id).toBe('b_clr');
-      expect(timeline.clips[1].duration).toBe(2); // DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT from CanonicalTimeline.ts
-    });
+    // The problematic test was here, it's being replaced below.
 
     test('should assign incrementing zIndex to sequential blocks', async () => {
-      const doc: LayoutV1 = {
-        ...minimalDoc,
-        blocks: [
-          { id: 'b1', sourceId: 's1', start: 0, duration: 1 } as any,
-          { id: 'b2', sourceId: 's2', start: 1, duration: 1 } as any,
-        ],
-      };
-      const timeline = await convertToCanonicalTimeline(doc);
-      expect(timeline.clips[0].zIndex).toBe(1);
-      expect(timeline.clips[1].zIndex).toBe(2);
+      // ... old test logic ...
     });
 
     test('clips should be sorted by absoluteStartTime then zIndex', async () => {
-       const doc: LayoutV1 = {
-        ...minimalDoc,
-        blocks: [ // Intentionally out of order for start time
-          { id: 'b2', sourceId: 's2', start: 1, duration: 1, zIndexOverride: 10 } as any, // zIndexOverride is conceptual
-          { id: 'b1', sourceId: 's1', start: 0, duration: 1, zIndexOverride: 20 } as any,
-          // Current convertToCanonicalTimeline assigns its own zIndex, so override won't work.
-          // We need to test that if two clips start at the same time, the one processed earlier (lower original zIndex) comes first.
-        ],
-      };
-      // Re-do test for sorting:
-      const docSort: LayoutV1 = {
-        ...minimalDoc,
-        blocks: [
-            // b1 and b_early_z have same start time. b1 is processed first, gets lower zIndex.
-            { id: 'b1', sourceId: 's1', start: 5, duration: 5 } as any,
-            { id: 'b_late_start', sourceId: 's2', start: 10, duration: 5 } as any,
-            { id: 'b_early_z', sourceId: 's4', start: 5, duration: 3 } as any, // Same start as b1, but processed later
-        ]
-      }
-      const timeline = await convertToCanonicalTimeline(docSort);
-      expect(timeline.clips.map(c => c.id)).toEqual(['b1', 'b_early_z', 'b_late_start']);
-      expect(timeline.clips[0].id).toBe('b1'); // start 5, zIndex 1
-      expect(timeline.clips[1].id).toBe('b_early_z'); // start 5, zIndex 3 (processed after b_late_start by loop order, but sorted earlier by time)
-                                                // No, current impl: zIndex is based on block order.
-                                                // b1 (zIndex 1), b_late_start (zIndex 2), b_early_z (zIndex 3)
-                                                // Sorted: (b1, abs:5, z:1), (b_early_z, abs:5, z:3), (b_late_start, abs:10, z:2)
-                                                // Result: b1, b_early_z, b_late_start
-      expect(timeline.clips[0].absoluteStartTime).toBe(5);
-      expect(timeline.clips[0].zIndex).toBe(1); // b1
-      expect(timeline.clips[1].absoluteStartTime).toBe(5);
-      expect(timeline.clips[1].zIndex).toBe(3); // b_early_z
-      expect(timeline.clips[2].absoluteStartTime).toBe(10);
-      expect(timeline.clips[2].zIndex).toBe(2); // b_late_start
+       // ... old test logic ...
     });
+  });
+  */
+
+  test('should use default duration for image/color elements if block and source element duration are missing', async () => {
+    // This test now uses the PRD-aligned LayoutV1 structure.
+    // convertToCanonicalTimeline has been refactored to process this structure.
+    const doc: LayoutV1 = {
+      spec: "layout/v1",
+      // Use a fresh canvas for this specific test, not minimalDoc's, to be self-contained
+      canvas: { w: 320, h: 240, fps: 15 },
+      blocks: [
+        {
+          id: 'block_with_image',
+          // No block duration, should be inferred from content.
+          // If content also lacks duration, block gets default static duration.
+          visuals: [
+            {
+              // id: 'img_el_1', // Element ID is optional in SourceV1
+              kind: 'image',
+              src: 'image.png', // Assuming this src is for context, not actual file loading in this specific test
+              // No duration specified for this image element
+            }
+          ]
+        },
+        {
+          id: 'block_with_colour',
+          // No block duration
+          visuals: [
+            {
+              // id: 'colour_el_1',
+              kind: 'colour',
+              src: 'blue',
+              // No duration specified for this colour element
+            }
+          ]
+        }
+      ]
+    };
+    const timeline = await convertToCanonicalTimeline(doc);
+
+    // Expect two clips, one for the image element, one for the colour element.
+    // Both elements should receive DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT (2s) because
+    // neither the elements nor their parent blocks define a duration.
+    // The blocks themselves will also get this duration as it's inferred from their content.
+    expect(timeline.clips).toBeArrayOfSize(2);
+
+    const imageClip = timeline.clips.find(c => c.kind === 'image');
+    const colourClip = timeline.clips.find(c => c.kind === 'colour');
+
+    expect(imageClip).toBeDefined();
+    // ID might be auto-generated, e.g. "block_with_image_vis_0"
+    expect(imageClip?.id).toContain('block_with_image_vis_');
+    expect(imageClip?.duration).toBe(2); // DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT (2s)
+
+    expect(colourClip).toBeDefined();
+    expect(colourClip?.id).toContain('block_with_colour_vis_');
+    expect(colourClip?.duration).toBe(2); // DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT (2s)
   });
 
   describe('PRD LayoutV1 Specifics (Background, Overlay, Block Visuals/Audio, Timing with "at")', () => {
@@ -196,14 +162,15 @@ describe('convertToCanonicalTimeline', () => {
 
     test.todo('TODO: should process block.visuals[].at for absolute timing', async () => {
         // const doc: LayoutV1 = {
-        //   ...minimalDoc,
+        //   ...minimalDoc, // careful with minimalDoc, it's not PRD aligned
+        //   spec: "layout/v1", canvas: {w:100,h:100,fps:10},
         //   blocks: [{
         //     id: 'b1',
-        //     visuals: [{ id: 'v1', sourceId: 's1', at: 2, duration: 3 }]
+        //     visuals: [{ id: 'v1', /*sourceId: 's1',*/ kind: 'image', src:'i.png', at: 2, duration: 3 }]
         //   }]
         // };
         // const timeline = await convertToCanonicalTimeline(doc);
-        // expect(timeline.clips[0].absoluteStartTime).toBe(2);
+        // expect(timeline.clips[0].absoluteStartTime).toBe(2); // if block start time is 0
     });
 
     test.todo('TODO: should handle sequential timing for visuals/audio within a block if "at" is missing', async () => {
@@ -222,12 +189,13 @@ describe('convertToCanonicalTimeline', () => {
     });
   });
 
-  // Test for source processing (already implicitly tested by block processing)
-  test('should include all sources in timeline.sources, processed', async () => {
-    const timeline = await convertToCanonicalTimeline(minimalDoc);
-    expect(timeline.sources.length).toBe(minimalDoc.sources.length);
-    timeline.sources.forEach(s => {
-      expect(s.resolvedPath).toBe(s.url); // Current behavior of convertToCanonicalTimeline
-    });
-  });
+  // Test for source processing (Now, sources are not top-level in CanonicalTimeline)
+  test.todo('TODO: Re-evaluate how to test source processing if sources are not global on CanonicalTimeline');
+  // test('should include all sources in timeline.sources, processed', async () => {
+  //   const timeline = await convertToCanonicalTimeline(minimalDoc); // minimalDoc has old structure
+    // expect(timeline.sources.length).toBe(minimalDoc.sources.length); // timeline.sources no longer exists
+    // timeline.sources.forEach(s => {
+    //   expect(s.resolvedPath).toBe(s.url);
+    // });
+  // });
 });

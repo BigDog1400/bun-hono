@@ -1,7 +1,7 @@
-import { SourceRenderer } from '../../../types';
-import { FilterGraphBuilder } from '../../../core/FilterGraphBuilder';
-import { CTClip, CTSource } from '../../../core/CanonicalTimeline';
-import { sourceRegistry } from '../../../core/PluginRegistry';
+import { SourceRenderer } from '../../types';
+import { FilterGraphBuilder } from '../../core/FilterGraphBuilder';
+import { CTClip, CTSource } from '../../core/CanonicalTimeline';
+import { sourceRegistry } from '../../core/PluginRegistry';
 
 class AudioSourceRenderer implements SourceRenderer {
   kind: string = 'audio';

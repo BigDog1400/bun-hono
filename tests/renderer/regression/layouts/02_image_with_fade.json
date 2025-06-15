@@ -19,9 +19,11 @@
           "kind": "image",
           "src": "tests/renderer/integration/media/test_image.png",
           "duration": 3,
-          "x": 10, "y": 10, "w": 80, "h": 80,
-          "resize": "fit",
-          "comment": "Effects for fade-in/out removed as they are not part of LayoutV1 schema. This test now just renders an image."
+          "x": 10,
+          "y": 10,
+          "w": 80,
+          "h": 80,
+          "resize": "fit"
         }
       ]
     }

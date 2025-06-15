@@ -1,7 +1,7 @@
-import { SourceRenderer } from '../../../types';
-import { FilterGraphBuilder } from '../../../core/FilterGraphBuilder';
-import { CTClip, CTSource } from '../../../core/CanonicalTimeline';
-import { sourceRegistry } from '../../../core/PluginRegistry';
+import { SourceRenderer } from '../../types';
+import { FilterGraphBuilder } from '../../core/FilterGraphBuilder';
+import { CTClip, CTSource } from '../../core/CanonicalTimeline';
+import { sourceRegistry } from '../../core/PluginRegistry';
 
 // Helper to get canvas dimensions, assuming they are stored in builder.options
 // In a more robust setup, these would be explicitly passed or accessed from a dedicated Timeline object.
