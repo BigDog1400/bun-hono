@@ -12,9 +12,9 @@ import { LayoutV1 } from '../../../src/renderer/schema/layout-v1'; // Actual Zod
 const DEFAULT_FPS = 30;
 const DEFAULT_CANVAS_WIDTH = 1920;
 const DEFAULT_CANVAS_HEIGHT = 1080;
-const DEFAULT_IMAGE_DURATION = 5;
-const DEFAULT_COLOR_DURATION = 5;
-
+// const DEFAULT_IMAGE_DURATION = 5; // No longer used for this specific test's assertion logic directly
+// const DEFAULT_COLOR_DURATION = 5; // No longer used for this specific test's assertion logic directly
+// The main code now uses DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT which is 2.
 
 describe('convertToCanonicalTimeline', () => {
   let minimalDoc: LayoutV1;
@@ -119,27 +119,13 @@ describe('convertToCanonicalTimeline', () => {
         ],
       };
       const timeline = await convertToCanonicalTimeline(doc);
-      expect(timeline.clips).toBeArrayOfSize(2);
-      // The current implementation uses DEFAULT_IMAGE_DURATION for images if source.duration is also missing
-      expect(timeline.clips[0].duration).toBe(DEFAULT_IMAGE_DURATION);
-      // For color, it currently would fail or need a default if block.duration is not provided.
-      // The current code has: `if (source.kind === 'image' && !clipDuration) { clipDuration = source.duration || DEFAULT_IMAGE_DURATION; }`
-      // It does NOT have a similar line for 'color'. So color clip might be skipped or error.
-      // Let's assume it skips if duration is undefined.
-      // If it were to be fixed: expect(timeline.clips[1].duration).toBe(DEFAULT_COLOR_DURATION);
 
-      // Based on current code, if a color block has no duration, it's skipped.
-      // To test it properly, we'd need a block duration.
-      // Let's re-test with block duration for color.
-      const docWithColorDuration: LayoutV1 = {
-        ...minimalDoc,
-        sources: [ { id: 's_clr', url: 'blue', kind: 'color' } ],
-        blocks: [ { id: 'b_clr', sourceId: 's_clr', start: 0, duration: 7 } as any ],
-      };
-      const timelineColor = await convertToCanonicalTimeline(docWithColorDuration);
-      expect(timelineColor.clips).toBeArrayOfSize(1);
-      expect(timelineColor.clips[0].kind).toBe('color');
-      expect(timelineColor.clips[0].duration).toBe(7);
+      // After fix in convertToCanonicalTimeline, both blocks should get DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT (2s)
+      expect(timeline.clips).toBeArrayOfSize(2);
+      expect(timeline.clips[0].id).toBe('b_img');
+      expect(timeline.clips[0].duration).toBe(2); // DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT from CanonicalTimeline.ts
+      expect(timeline.clips[1].id).toBe('b_clr');
+      expect(timeline.clips[1].duration).toBe(2); // DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT from CanonicalTimeline.ts
     });
 
     test('should assign incrementing zIndex to sequential blocks', async () => {

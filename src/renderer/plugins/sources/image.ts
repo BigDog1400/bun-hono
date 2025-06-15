@@ -1,7 +1,7 @@
-import { SourceRenderer } from '../../types';
-import { FilterGraphBuilder } from '../../core/FilterGraphBuilder';
-import { CTClip, CTSource } from '../../core/CanonicalTimeline';
-import { sourceRegistry } from '../../core/PluginRegistry';  
+import { SourceRenderer } from '../../../types';
+import { FilterGraphBuilder } from '../../../core/FilterGraphBuilder';
+import { CTClip, CTSource } from '../../../core/CanonicalTimeline';
+import { sourceRegistry } from '../../../core/PluginRegistry';
 
 // Helper to get canvas dimensions (same as in video.ts)
 const getCanvasDimensions = (builder: FilterGraphBuilder) => {

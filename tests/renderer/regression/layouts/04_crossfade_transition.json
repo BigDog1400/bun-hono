@@ -1,34 +1,42 @@
 {
-  "version": "v1",
+  "spec": "layout/v1",
   "canvas": {
-    "width": 320,
-    "height": 240,
+    "w": 320,
+    "h": 240,
     "fps": 15
   },
-  "sources": [
-    { "id": "s_img_A", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" },
-    { "id": "s_blue_B", "url": "blue", "kind": "colour" }
-  ],
   "blocks": [
     {
-      "id": "b_A_from",
-      "sourceId": "s_img_A",
-      "start": 0,
-      "duration": 2
+      "id": "block_A_from",
+      "duration": 2,
+      "visuals": [
+        {
+          "id": "s_img_A_trans",
+          "kind": "image",
+          "src": "tests/renderer/integration/media/test_image.png",
+          "duration": 2
+        }
+      ]
     },
     {
-      "id": "b_B_to",
-      "sourceId": "s_blue_B",
-      "start": 1,
-      "duration": 2
+      "id": "block_B_to",
+      "duration": 2,
+      "visuals": [
+        {
+          "id": "s_blue_B_trans",
+          "kind": "colour",
+          "src": "blue",
+          "duration": 2
+        }
+      ]
     }
   ],
   "transitions": [
     {
-      "id": "t_crossfade1",
+      "id": "t_crossfade_AB",
       "type": "crossfade",
       "duration": 1,
-      "between": ["b_A_from", "b_B_to"]
+      "between": ["block_A_from", "block_B_to"]
     }
   ]
 }

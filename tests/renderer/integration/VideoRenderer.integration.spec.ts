@@ -1,6 +1,8 @@
 import { expect, test, describe, beforeEach, afterEach } from 'bun:test';
 import fs from 'fs';
 import path from 'path';
+// Import all plugins to ensure they are registered before VideoRenderer is instantiated
+import '../../../src/renderer/plugins';
 import { VideoRenderer, RendererOptions } from '../../../src/renderer/core/VideoRenderer';
 import { LayoutV1 } from '../../../src/renderer/schema/layout-v1';
 

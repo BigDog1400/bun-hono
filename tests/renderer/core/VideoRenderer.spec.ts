@@ -1,44 +1,44 @@
-import { expect, test, describe, beforeEach, vi, afterEach } from 'bun:test';
+import { expect, test, describe, beforeEach, afterEach, mock } from 'bun:test';
 import { VideoRenderer, RendererOptions, RenderResult } from '../../../src/renderer/core/VideoRenderer';
-import { LayoutV1, LayoutDocument } from '../../../src/renderer/schema/layout-v1';
-import { convertToCanonicalTimeline, CanonicalTimeline, CTClip, CTSource, CTEffect, CTTransition } from '../../../src/renderer/core/CanonicalTimeline';
-import { FilterGraphBuilder } from '../../../src/renderer/core/FilterGraphBuilder';
+import { LayoutV1 } from '../../../src/renderer/schema/layout-v1';
+import { CanonicalTimeline, CTClip, CTSource, CTEffect } from '../../../src/renderer/core/CanonicalTimeline'; // Keep actual types
+// PluginRegistry is used by VideoRenderer to pass to FGB, so we need its actual structure, not a full mock
 import { sourceRegistry, effectRegistry, transitionRegistry } from '../../../src/renderer/core/PluginRegistry';
 
-// --- Mocks ---
 
-// Mock convertToCanonicalTimeline
-vi.mock('../../../src/renderer/core/CanonicalTimeline', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../src/renderer/core/CanonicalTimeline')>();
-  return {
-    ...actual, // Keep actual types
-    convertToCanonicalTimeline: vi.fn(),
-  };
-});
+// --- Bun Mocks ---
 
-// Mock Registries
-vi.mock('../../../src/renderer/core/PluginRegistry', () => ({
-  sourceRegistry: { get: vi.fn() },
-  effectRegistry: { get: vi.fn() },
-  transitionRegistry: { get: vi.fn() },
+// Mock for convertToCanonicalTimeline
+const mockConvertToCanonicalTimeline = mock.fn();
+mock.module('../../../src/renderer/core/CanonicalTimeline', () => ({
+  convertToCanonicalTimeline: mockConvertToCanonicalTimeline,
+  // Export other types if VideoRenderer file imports them directly from CanonicalTimeline module
+  // For now, assuming VideoRenderer only imports convertToCanonicalTimeline function and types
 }));
 
-// Mock FilterGraphBuilder and its methods that VideoRenderer interacts with
-const mockFilterGraphBuilderInstance = {
-  addInput: vi.fn(), // For global inputs added by VideoRenderer from timeline.sources
-  addClipToGraph: vi.fn(), // This is the key method VideoRenderer uses per clip
-  buildCommandArgs: vi.fn().mockReturnValue(['ffmpeg_args_mock']), // Mock return value
-  build: vi.fn().mockReturnValue('filter_complex_string_mock'), // If build() is used instead of buildCommandArgs
+// Mock for FilterGraphBuilder
+const mockFGBAddInput = mock.fn();
+const mockFGBAddClipToGraph = mock.fn();
+const mockFGBBuildCommandArgs = mock.fn().mockReturnValue(['ffmpeg_args_mock']); // Default mock return
+const mockFGBInstance = {
+  addInput: mockFGBAddInput,
+  addClipToGraph: mockFGBAddClipToGraph,
+  buildCommandArgs: mockFGBBuildCommandArgs,
+  // build: mock.fn().mockReturnValue('filter_complex_string_mock'), // if build() were used
 };
-
-vi.mock('../../../src/renderer/core/FilterGraphBuilder', () => ({
-  FilterGraphBuilder: vi.fn(() => mockFilterGraphBuilderInstance),
+const mockFilterGraphBuilderConstructor = mock.fn(() => mockFGBInstance);
+mock.module('../../../src/renderer/core/FilterGraphBuilder', () => ({
+  FilterGraphBuilder: mockFilterGraphBuilderConstructor,
 }));
 
-// Mock FFmpeg execution (VideoRenderer currently logs, doesn't execute a separate module)
-// If it did:
-// vi.mock('../path/to/ffmpegExecutor', () => ({ executeFFmpeg: vi.fn() }));
+// Mock for ffmpeg-executor
+const mockExecuteFFmpegCommand = mock.fn();
+mock.module('../../../src/renderer/utils/ffmpeg-executor', () => ({
+  executeFFmpegCommand: mockExecuteFFmpegCommand,
+}));
 
+
+// --- Test Suite ---
 
 describe('VideoRenderer', () => {
   let renderer: VideoRenderer;
@@ -47,124 +47,114 @@ describe('VideoRenderer', () => {
   let mockOptions: RendererOptions;
 
   beforeEach(() => {
+    // Reset mocks before each test to clear call counts, etc.
+    mockConvertToCanonicalTimeline.mockClear();
+    mockFilterGraphBuilderConstructor.mockClear();
+    mockFGBAddInput.mockClear();
+    mockFGBAddClipToGraph.mockClear();
+    mockFGBBuildCommandArgs.mockClear().mockReturnValue(['ffmpeg_args_mock']); // Reset and keep default
+    mockExecuteFFmpegCommand.mockClear();
+
     mockOptions = {
       outputDir: 'test_output',
       outputFile: 'video.mp4',
-      enableVerboseLogging: false, // Keep false to reduce console noise during tests
+      enableVerboseLogging: false,
     };
     renderer = new VideoRenderer(mockOptions);
 
     mockDoc = {
       version: 'v1',
       sources: [{ id: 's1', url: 'src1.mp4', kind: 'video', duration: 10 }],
-      blocks: [{ id: 'b1', sourceId: 's1', start: 0, duration: 10 } as any], // Simplified block for current CT
+      blocks: [{ id: 'b1', sourceId: 's1', start: 0, duration: 10 } as any],
     };
 
-    // Define a simple timeline that convertToCanonicalTimeline would return
     const source1: CTSource = { id: 's1', url: 'src1.mp4', resolvedPath: 'src1.mp4', kind: 'video', duration: 10 };
     const clip1: CTClip = {
-      id: 'c1',
-      sourceId: 's1',
-      kind: 'video',
-      src: 'src1.mp4',
-      absoluteStartTime: 0,
-      duration: 5,
-      zIndex: 1,
+      id: 'c1', sourceId: 's1', kind: 'video', src: 'src1.mp4',
+      absoluteStartTime: 0, duration: 5, zIndex: 1,
       effects: [{ id: 'e1', kind: 'fade', params: { type: 'in', duration: 1 } } as CTEffect],
     };
     const clip2: CTClip = {
-      id: 'c2',
-      sourceId: 's1', // Using same source for simplicity
-      kind: 'video',
-      src: 'src1.mp4',
-      absoluteStartTime: 5,
-      duration: 5,
-      zIndex: 1,
+      id: 'c2', sourceId: 's1', kind: 'video', src: 'src1.mp4',
+      absoluteStartTime: 5, duration: 5, zIndex: 1,
     };
     mockTimeline = {
-      version: 'v1',
-      canvasWidth: 1920,
-      canvasHeight: 1080,
-      fps: 30,
+      version: 'v1', canvasWidth: 1920, canvasHeight: 1080, fps: 30,
       sources: [source1],
       clips: [clip1, clip2],
-      // transitions: [{ id: 't1', kind: 'crossfade', duration: 1, fromClipId: 'c1', toClipId: 'c2' }] // Conceptual
     };
 
-    // Setup mock implementations
-    vi.mocked(convertToCanonicalTimeline).mockResolvedValue(mockTimeline);
-    // vi.mocked(executeFFmpeg).mockResolvedValue({ success: true }); // If actual execution was called
+    mockConvertToCanonicalTimeline.mockResolvedValue(mockTimeline);
+    mockExecuteFFmpegCommand.mockResolvedValue({ success: true }); // Default to success
   });
 
   afterEach(() => {
-    vi.clearAllMocks(); // Clear mocks between tests
+    // No need for vi.clearAllMocks() as we are clearing specific mocks in beforeEach
   });
 
   test('successful render path - high-level orchestration', async () => {
-    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {}); // Suppress and spy on ffmpeg command log
+    // const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {}); // Bun's mock doesn't have vi.spyOn
+    // For console logs, if needed, could mock global console.log with mock.fn() but that's more involved.
+    // The ffmpeg-executor now handles logging, so VideoRenderer console output is less critical.
 
     const result = await renderer.render(mockDoc);
 
-    // 1. Verify convertToCanonicalTimeline call
-    expect(convertToCanonicalTimeline).toHaveBeenCalledWith(mockDoc);
-    expect(convertToCanonicalTimeline).toHaveBeenCalledTimes(1);
+    expect(mockConvertToCanonicalTimeline).toHaveBeenCalledWith(mockDoc);
+    expect(mockConvertToCanonicalTimeline).toHaveBeenCalledTimes(1);
 
-    // 2. Verify FilterGraphBuilder instantiation
-    expect(FilterGraphBuilder).toHaveBeenCalledTimes(1);
-    // expect(FilterGraphBuilder).toHaveBeenCalledWith({ /* options if passed to constructor */ });
+    expect(mockFilterGraphBuilderConstructor).toHaveBeenCalledTimes(1);
+    // expect(mockFilterGraphBuilderConstructor).toHaveBeenCalledWith({ /* options if passed */ });
 
-    // 3. Verify builder.addInput for each source in timeline.sources
-    // This was part of VideoRenderer's previous implementation sketch.
-    expect(mockFilterGraphBuilderInstance.addInput).toHaveBeenCalledTimes(mockTimeline.sources.length);
+    expect(mockFGBAddInput).toHaveBeenCalledTimes(mockTimeline.sources.length);
     for (const source of mockTimeline.sources) {
-      expect(mockFilterGraphBuilderInstance.addInput).toHaveBeenCalledWith(source.resolvedPath);
+      expect(mockFGBAddInput).toHaveBeenCalledWith(source.resolvedPath);
     }
 
-    // 4. Verify builder.addClipToGraph for each clip
-    // This is the key delegation point.
-    expect(mockFilterGraphBuilderInstance.addClipToGraph).toHaveBeenCalledTimes(mockTimeline.clips.length);
+    expect(mockFGBAddClipToGraph).toHaveBeenCalledTimes(mockTimeline.clips.length);
     for (const clip of mockTimeline.clips) {
-      expect(mockFilterGraphBuilderInstance.addClipToGraph).toHaveBeenCalledWith(
+      expect(mockFGBAddClipToGraph).toHaveBeenCalledWith(
         clip,
         mockTimeline.sources,
-        sourceRegistry, // Passed directly
-        effectRegistry,   // Passed directly
-        transitionRegistry // Passed directly
+        sourceRegistry,
+        effectRegistry,
+        transitionRegistry
       );
     }
 
-    // 5. Verify FFmpeg command generation
-    expect(mockFilterGraphBuilderInstance.buildCommandArgs).toHaveBeenCalledWith(
+    expect(mockFGBBuildCommandArgs).toHaveBeenCalledWith(
       `${mockOptions.outputDir}/${mockOptions.outputFile}`
     );
-    expect(mockFilterGraphBuilderInstance.buildCommandArgs).toHaveBeenCalledTimes(1);
+    expect(mockFGBBuildCommandArgs).toHaveBeenCalledTimes(1);
 
-    // 6. Verify FFmpeg execution (currently logging)
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('FFmpeg execution placeholder. Command:'));
-    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('ffmpeg ffmpeg_args_mock'));
+    expect(mockExecuteFFmpegCommand).toHaveBeenCalledWith(
+      ['ffmpeg_args_mock'], // This was the default return from mockFGBBuildCommandArgs
+      {
+        ffmpegPath: mockOptions.ffmpegPath, // VideoRenderer sets default 'ffmpeg' if not in options
+        enableVerboseLogging: mockOptions.enableVerboseLogging,
+      }
+    );
+    expect(mockExecuteFFmpegCommand).toHaveBeenCalledTimes(1);
 
-
-    // 7. Verify successful result
     expect(result.success).toBe(true);
     expect(result.outputPath).toBe(`${mockOptions.outputDir}/${mockOptions.outputFile}`);
 
-    consoleLogSpy.mockRestore();
+    // consoleLogSpy.mockRestore(); // if using console spy
   });
 
   test('should return error result if convertToCanonicalTimeline fails', async () => {
     const errorMessage = 'CanonicalTimeline conversion failed';
-    vi.mocked(convertToCanonicalTimeline).mockRejectedValue(new Error(errorMessage));
+    mockConvertToCanonicalTimeline.mockRejectedValue(new Error(errorMessage));
 
     const result = await renderer.render(mockDoc);
 
     expect(result.success).toBe(false);
     expect(result.error).toContain(errorMessage);
-    expect(FilterGraphBuilder).not.toHaveBeenCalled(); // Should fail before builder instantiation
+    expect(mockFilterGraphBuilderConstructor).not.toHaveBeenCalled();
   });
 
   test('should return error result if builder.addClipToGraph fails', async () => {
     const errorMessage = 'addClipToGraph failed';
-    mockFilterGraphBuilderInstance.addClipToGraph.mockImplementation(() => {
+    mockFGBAddClipToGraph.mockImplementation(() => {
       throw new Error(errorMessage);
     });
 
@@ -172,34 +162,29 @@ describe('VideoRenderer', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain(errorMessage);
-    expect(mockFilterGraphBuilderInstance.buildCommandArgs).not.toHaveBeenCalled(); // Should fail before command generation
+    expect(mockFGBBuildCommandArgs).not.toHaveBeenCalled();
   });
 
   test('should return error result if builder.buildCommandArgs fails', async () => {
     const errorMessage = 'buildCommandArgs failed';
-    mockFilterGraphBuilderInstance.buildCommandArgs.mockImplementation(() => {
+    mockFGBBuildCommandArgs.mockImplementation(() => {
       throw new Error(errorMessage);
     });
 
     const result = await renderer.render(mockDoc);
     expect(result.success).toBe(false);
     expect(result.error).toContain(errorMessage);
-     // FFmpeg (logging part) should not be called
-    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('FFmpeg execution placeholder'));
-    consoleLogSpy.mockRestore();
+    expect(mockExecuteFFmpegCommand).not.toHaveBeenCalled();
   });
 
-  // Test for "Plugin not found" is tricky if addClipToGraph is the one resolving plugins.
-  // If VideoRenderer itself called registry.get() and a plugin was missing, that would be testable here.
-  // Since addClipToGraph is a black box for this test, we assume it handles internal plugin resolution errors.
-  // If VideoRenderer was responsible for getting plugins for addClipToGraph, we'd test:
-  // test.todo('should return error if a required plugin is not found');
+  test('should return error result if FFmpeg execution fails', async () => {
+    const ffmpegErrorMsg = 'ffmpeg actual error output';
+    const ffmpegDetails = 'ffmpeg exited with code 1';
+    mockExecuteFFmpegCommand.mockResolvedValue({ success: false, errorLog: ffmpegErrorMsg, details: ffmpegDetails });
 
-  // Test for FFmpeg execution failure (if it were a real execution)
-  // test.todo('should return error result if FFmpeg execution fails');
-  // vi.mocked(executeFFmpeg).mockResolvedValue({ success: false, error: 'ffmpeg error' });
-  // const result = await renderer.render(mockDoc);
-  // expect(result.success).toBe(false);
-  // expect(result.error).toBe('ffmpeg error');
+    const result = await renderer.render(mockDoc);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(`FFmpeg execution failed: ${ffmpegDetails}`);
+    expect(result.details).toBe(ffmpegErrorMsg);
+  });
 });

@@ -1,49 +1,73 @@
 {
-  "version": "v1",
-  "canvas": {
-    "width": 640,
-    "height": 360,
-    "fps": 24
+  "spec": "layout/v1",
+  "meta": {
+    "title": "Complex Scene Test",
+    "description": "Tests background, overlay, and multiple blocks."
   },
-  "sources": [
-    { "id": "s_bg_video", "url": "tests/renderer/integration/media/test_image.png", "kind": "image", "comment": "Placeholder, ideally a video" },
-    { "id": "s_overlay_img", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" },
-    { "id": "s_main_audio", "url": "tests/renderer/integration/media/test_audio.mp3", "kind": "audio", "duration": 5 }
-  ],
-  "background": [
-    {
-      "id": "bg_track",
-      "sourceId": "s_bg_video",
-      "duration": 5,
-      "comment": "This 'background' field processing is a TODO for convertToCanonicalTimeline"
-    }
-  ],
+  "canvas": {
+    "w": 640,
+    "h": 360,
+    "fps": 24,
+    "background_color": "black"
+  },
+  "background": {
+    "id": "global_bg",
+    "kind": "colour",
+    "src": "#303030",
+    "comment": "Global dark grey background, should be behind all blocks"
+  },
   "blocks": [
     {
-      "id": "b_main_audio_track",
-      "sourceId": "s_main_audio",
-      "start": 0,
+      "id": "block_audio_main",
       "duration": 5,
-      "comment": "Main audio track. Visuals would be layered on top by zIndex."
+      "audio": [
+        {
+          "id": "s_main_audio",
+          "kind": "audio",
+          "src": "tests/renderer/integration/media/test_audio.mp3",
+          "durationFromSource": true
+        }
+      ]
     },
     {
-      "id": "b_placeholder_visuals",
-      "sourceId": "s_overlay_img",
-      "start": 1,
+      "id": "block_center_image",
       "duration": 3,
-      "x": 0.1, "y": 0.1, "width": 0.3, "height": 0.3, "opacity": 0.8,
-      "comment": "A visual block that would be layered over background based on zIndex."
-    }
-  ],
-  "overlay": [
+      "visuals": [
+        {
+          "id": "s_center_img",
+          "kind": "image",
+          "src": "tests/renderer/integration/media/test_image.png",
+          "at": 1,
+          "duration": 3,
+          "x": 40, "y": 40, "w": 20, "h": 20,
+          "resize": "fit",
+          "opacity": 90
+        }
+      ]
+    },
     {
-      "id": "overlay_track",
-      "sourceId": "s_overlay_img",
-      "at": 0,
-      "duration": 5,
-      "x": 0.7, "y": 0.7, "width": 0.2, "height": 0.2,
-      "comment": "This 'overlay' field processing is a TODO for convertToCanonicalTimeline"
+      "id": "block_another_color",
+      "duration": 2,
+      "visuals": [
+        {
+            "id": "s_moving_color",
+            "kind": "colour",
+            "src": "green",
+            "at": 3,
+            "duration": 2,
+            "x": 10, "y": 10, "w": 15, "h": 15
+        }
+      ]
     }
   ],
-  "comment": "This JSON uses fields like 'background' and 'overlay' that are part of LayoutV1 PRD but may not be fully processed by the current convertToCanonicalTimeline. It's a placeholder for a more complex test once those features are implemented."
+  "overlay": {
+    "id": "global_overlay_logo",
+    "kind": "image",
+    "src": "tests/renderer/integration/media/test_image.png",
+    "comment": "Using image as placeholder logo. Should be above all blocks.",
+    "w": 15, "h": 10, "x": 80, "y": 5,
+    "opacity": 75,
+    "resize": "stretch"
+  },
+  "comment": "This JSON uses 'background' and 'overlay' which require convertToCanonicalTimeline to be updated for proper processing."
 }

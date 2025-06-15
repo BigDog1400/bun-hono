@@ -1,22 +1,28 @@
 {
-  "version": "v1",
+  "spec": "layout/v1",
   "canvas": {
-    "width": 320,
-    "height": 240,
+    "w": 320,
+    "h": 240,
     "fps": 15
   },
-  "sources": [
-    { "id": "s_img", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" }
-  ],
+  "background": {
+    "kind": "colour",
+    "src": "black"
+  },
   "blocks": [
     {
-      "id": "b_image_fade",
-      "sourceId": "s_img",
-      "start": 0,
+      "id": "b_image_no_fade",
       "duration": 3,
-      "effects": [
-        { "id": "e_fadein", "kind": "fade", "params": { "type": "in", "duration": 1 } },
-        { "id": "e_fadeout", "kind": "fade", "params": { "type": "out", "duration": 1 } }
+      "visuals": [
+        {
+          "id": "s_img_fading",
+          "kind": "image",
+          "src": "tests/renderer/integration/media/test_image.png",
+          "duration": 3,
+          "x": 10, "y": 10, "w": 80, "h": 80,
+          "resize": "fit",
+          "comment": "Effects for fade-in/out removed as they are not part of LayoutV1 schema. This test now just renders an image."
+        }
       ]
     }
   ]

@@ -1,7 +1,7 @@
-import { TransitionRenderer } from '../../types';
-import { FilterGraphBuilder } from '../../core/FilterGraphBuilder';
-import { CTClip, CTTransition } from '../../core/CanonicalTimeline';
-import { transitionRegistry } from '../../core/PluginRegistry';
+import { TransitionRenderer } from '../../../types';
+import { FilterGraphBuilder } from '../../../core/FilterGraphBuilder';
+import { CTClip, CTTransition } from '../../../core/CanonicalTimeline';
+import { transitionRegistry } from '../../../core/PluginRegistry';
 
 class CrossFadeTransitionRenderer implements TransitionRenderer {
   kind: string = 'crossfade';

@@ -1,4 +1,6 @@
 import { expect, test, describe, beforeEach, mock, vi } from 'bun:test';
+// Ensure plugin is registered by importing its module
+import '../../../../src/renderer/plugins/sources/image';
 import { sourceRegistry } from '../../../../src/renderer/core/PluginRegistry';
 import { FilterGraphBuilder, RendererOptions } from '../../../../src/renderer/core/FilterGraphBuilder';
 import { CTClip, CTSource } from '../../../../src/renderer/core/CanonicalTimeline';

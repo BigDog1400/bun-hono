@@ -1,29 +1,24 @@
 {
-  "version": "v1",
-  "canvas": {
-    "width": 320,
-    "height": 240,
-    "fps": 15
+  "spec": "layout/v1",
+  "canvas": { "w": 320, "h": 240, "fps": 15 },
+  "background": {
+    "kind": "colour",
+    "src": "red"
   },
-  "sources": [
-    { "id": "s_red", "url": "red", "kind": "colour" },
-    { "id": "s_img", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" }
-  ],
   "blocks": [
     {
-      "id": "b_bg_red",
-      "sourceId": "s_red",
-      "start": 0,
+      "id": "block_image_main",
       "duration": 2,
-      "zIndex": 0
-    },
-    {
-      "id": "b_image",
-      "sourceId": "s_img",
-      "start": 0,
-      "duration": 2,
-      "zIndex": 1,
-      "width": 0.25, "height": 0.25, "x": 0.375, "y": 0.375
+      "visuals": [
+        {
+          "id": "s_img_1",
+          "kind": "image",
+          "src": "tests/renderer/integration/media/test_image.png",
+          "duration": 2,
+          "x": 37, "y": 37, "w": 25, "h": 25,
+          "resize": "stretch"
+        }
+      ]
     }
   ]
 }

@@ -1,4 +1,6 @@
 import { expect, test, describe, beforeEach, vi } from 'bun:test';
+// Ensure plugin is registered by importing its module
+import '../../../../src/renderer/plugins/transitions/crossfade';
 import { transitionRegistry } from '../../../../src/renderer/core/PluginRegistry';
 import { FilterGraphBuilder } from '../../../../src/renderer/core/FilterGraphBuilder';
 import { CTClip, CTTransition } from '../../../../src/renderer/core/CanonicalTimeline';
