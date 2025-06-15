@@ -1,0 +1,49 @@
+{
+  "version": "v1",
+  "canvas": {
+    "width": 640,
+    "height": 360,
+    "fps": 24
+  },
+  "sources": [
+    { "id": "s_bg_video", "url": "tests/renderer/integration/media/test_image.png", "kind": "image", "comment": "Placeholder, ideally a video" },
+    { "id": "s_overlay_img", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" },
+    { "id": "s_main_audio", "url": "tests/renderer/integration/media/test_audio.mp3", "kind": "audio", "duration": 5 }
+  ],
+  "background": [
+    {
+      "id": "bg_track",
+      "sourceId": "s_bg_video",
+      "duration": 5,
+      "comment": "This 'background' field processing is a TODO for convertToCanonicalTimeline"
+    }
+  ],
+  "blocks": [
+    {
+      "id": "b_main_audio_track",
+      "sourceId": "s_main_audio",
+      "start": 0,
+      "duration": 5,
+      "comment": "Main audio track. Visuals would be layered on top by zIndex."
+    },
+    {
+      "id": "b_placeholder_visuals",
+      "sourceId": "s_overlay_img",
+      "start": 1,
+      "duration": 3,
+      "x": 0.1, "y": 0.1, "width": 0.3, "height": 0.3, "opacity": 0.8,
+      "comment": "A visual block that would be layered over background based on zIndex."
+    }
+  ],
+  "overlay": [
+    {
+      "id": "overlay_track",
+      "sourceId": "s_overlay_img",
+      "at": 0,
+      "duration": 5,
+      "x": 0.7, "y": 0.7, "width": 0.2, "height": 0.2,
+      "comment": "This 'overlay' field processing is a TODO for convertToCanonicalTimeline"
+    }
+  ],
+  "comment": "This JSON uses fields like 'background' and 'overlay' that are part of LayoutV1 PRD but may not be fully processed by the current convertToCanonicalTimeline. It's a placeholder for a more complex test once those features are implemented."
+}

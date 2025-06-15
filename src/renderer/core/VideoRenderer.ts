@@ -3,7 +3,7 @@ import { convertToCanonicalTimeline, CanonicalTimeline, CTClip } from './Canonic
 import { FilterGraphBuilder, RendererOptions as FGRendererOptions } from './FilterGraphBuilder';
 import { sourceRegistry, effectRegistry, transitionRegistry } from './PluginRegistry';
 import { SourceRenderer, EffectRenderer, TransitionRenderer } from '../types';
-// import { spawn } from 'child_process'; // For actual FFmpeg execution later
+import { executeFFmpegCommand, FFmpegExecuteResult } from '../utils/ffmpeg-executor'; // Import the new executor
 
 // --- Types ---
 
@@ -195,27 +195,36 @@ export class VideoRenderer {
       }
 
       // Placeholder for actual FFmpeg execution:
-      // For now, just log the command and return success.
-      // In a real implementation:
-      // const ffmpegProcess = spawn(this.options.ffmpegPath, ffmpegCommandArgs);
-      // await new Promise((resolve, reject) => {
-      //   ffmpegProcess.on('close', code => code === 0 ? resolve(undefined) : reject(new Error(`FFmpeg exited with code ${code}`)));
-      //   ffmpegProcess.stderr.on('data', data => console.error(`FFmpeg stderr: ${data}`)); // Log errors
-      //   if (this.options.enableVerboseLogging) {
-      //      ffmpegProcess.stdout.on('data', data => console.log(`FFmpeg stdout: ${data}`));
-      //   }
-      // });
+      // For now, just log the command and return success. // This comment is now outdated by the change below
+      // In a real implementation: // This is now done in ffmpeg-executor.ts
 
-      console.log(`VideoRenderer: FFmpeg execution placeholder. Command: ${ffmpegFullCommand}`);
+      // Execute FFmpeg command
+      const ffmpegResult: FFmpegExecuteResult = await executeFFmpegCommand(ffmpegCommandArgs, {
+        ffmpegPath: this.options.ffmpegPath,
+        enableVerboseLogging: this.options.enableVerboseLogging,
+      });
 
-      // Simulate success
-      return {
-        success: true,
-        outputPath: `${this.options.outputDir}/${this.options.outputFile}`,
-      };
+      if (ffmpegResult.success) {
+        return {
+          success: true,
+          outputPath: `${this.options.outputDir}/${this.options.outputFile}`,
+        };
+      } else {
+        console.error('VideoRenderer: FFmpeg execution failed.');
+        if (ffmpegResult.errorLog) {
+          // console.error('VideoRenderer: FFmpeg stderr:\n', ffmpegResult.errorLog); // Already logged by executor if verbose
+        }
+        return {
+          success: false,
+          error: `FFmpeg execution failed: ${ffmpegResult.details || 'Unknown FFmpeg error'}`,
+          details: ffmpegResult.errorLog,
+        };
+      }
 
     } catch (error: any) {
-      console.error('VideoRenderer: Error during rendering process', error);
+      // This catch block now handles errors from earlier stages (timeline, graph building)
+      // or errors from executeFFmpegCommand if it throws (though it's designed to return a result object).
+      console.error('VideoRenderer: Error during rendering orchestration', error);
       return {
         success: false,
         error: error.message || 'Unknown error during rendering',

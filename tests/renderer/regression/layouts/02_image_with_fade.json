@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "canvas": {
+    "width": 320,
+    "height": 240,
+    "fps": 15
+  },
+  "sources": [
+    { "id": "s_img", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" }
+  ],
+  "blocks": [
+    {
+      "id": "b_image_fade",
+      "sourceId": "s_img",
+      "start": 0,
+      "duration": 3,
+      "effects": [
+        { "id": "e_fadein", "kind": "fade", "params": { "type": "in", "duration": 1 } },
+        { "id": "e_fadeout", "kind": "fade", "params": { "type": "out", "duration": 1 } }
+      ]
+    }
+  ]
+}
