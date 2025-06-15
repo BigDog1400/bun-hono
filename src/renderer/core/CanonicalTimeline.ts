@@ -157,7 +157,7 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
         const elStartTime = sourceEl.at ?? 0; // 'at' is relative to blockStartTime
         let elDuration = sourceEl.duration;
 
-        if (!elDuration) {
+        if (!elDuration) { // If sourceEl.duration is undefined, null, or 0
           if (sourceEl.kind === 'video' || sourceEl.kind === 'audio') {
             if (sourceEl.durationFromSource && sourceEl.duration) { // Assuming source.duration was pre-filled by a probe if durationFromSource
                 elDuration = sourceEl.duration;
@@ -166,19 +166,23 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
               // Otherwise, for video/audio without duration, it's problematic without probing.
               // For now, if element is video/audio and has no duration, and block has no duration, it's an issue.
               // If block has duration, element can take that.
-              if (blockExplicitDuration) {
+              if (blockExplicitDuration && (blockExplicitDuration - elStartTime) > 0) {
                 elDuration = blockExplicitDuration - elStartTime; // Element fills remaining block time from its start
               } else {
                 console.warn(`Element ${sourceEl.id || (kindPrefix+elIndex)} in block ${blockDef.id} is ${sourceEl.kind} but has no duration, and block has no explicit duration. Skipping.`);
-                return;
+                return; // Skips this source element
               }
             }
           } else { // image or colour
-            elDuration = blockExplicitDuration ? (blockExplicitDuration - elStartTime) : DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT;
+            // If block has explicit duration, element can take that (minus its own start time 'at').
+            // Otherwise, it should take DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT.
+            elDuration = (blockExplicitDuration && (blockExplicitDuration - elStartTime) > 0)
+                         ? (blockExplicitDuration - elStartTime)
+                         : DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT;
           }
         }
 
-        if (elDuration <=0) {
+        if (elDuration <=0) { // Check after attempting to set/default
             console.warn(`Element ${sourceEl.id || (kindPrefix+elIndex)} in block ${blockDef.id} has invalid duration ${elDuration}. Skipping.`);
             return;
         }
@@ -206,7 +210,7 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
     // Process visuals for the current block
     processSourceElements(blockDef.visuals, 'vis', currentBlockGlobalZ + blockIndex * 10); // Increment Z for each block
     // Process audio for the current block
-    processSourceElements(blockDef.audio, 'aud', 0); // Audio zIndex typically not used for layering visual output
+    processSourceElements(blockDef.audio, 'aud', 0); // Audio zIndex typically not used for visual layering output
 
     if (blockExplicitDuration !== undefined && blockExplicitDuration !== null) {
         accumulatedBlockTime = blockStartTime + blockExplicitDuration;
@@ -214,19 +218,13 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
         // If block duration was not explicit, it's now determined by its content
         blockExplicitDuration = maxEndTimeInBlock - blockStartTime;
         if (blockExplicitDuration <= 0 && (blockDef.visuals?.length || blockDef.audio?.length)) {
-            // This means content had issues, or block was empty but defined.
-            // If it had content that was skipped, it might be 0.
-            // If block was meant to be empty but timed, it needs explicit duration.
-            console.warn(`Block ${blockDef.id} had no explicit duration and its content resulted in zero or negative duration. It might not appear as intended.`);
-            // Give it a minimal duration if it had content definitions, otherwise it might mess up sequence.
-            // This path needs careful consideration of user intent vs. schema.
-            // For now, if it had visual/audio defs but they all failed to produce duration, it might be an issue.
-            // If it was truly empty, blockExplicitDuration could remain 0.
-            // Let's assume if it had definitions, it should have some default.
+            // This block had content definitions, but they resulted in no positive duration for the block.
+            // This could happen if all elements were skipped or had zero duration.
             if((blockDef.visuals && blockDef.visuals.length > 0) || (blockDef.audio && blockDef.audio.length > 0)) {
                  blockExplicitDuration = DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT; // Fallback for blocks with content that failed to get duration
+                 console.warn(`Block ${blockDef.id} had no explicit duration and its content resulted in zero or negative duration. Applied default block duration: ${blockExplicitDuration}s.`);
             } else {
-                blockExplicitDuration = 0; // Truly empty block
+                blockExplicitDuration = 0; // Truly empty block (no visual/audio defs)
             }
         }
         accumulatedBlockTime = blockStartTime + blockExplicitDuration;

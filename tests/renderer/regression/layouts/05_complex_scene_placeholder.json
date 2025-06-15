@@ -38,7 +38,10 @@
           "src": "tests/renderer/integration/media/test_image.png",
           "at": 1,
           "duration": 3,
-          "x": 40, "y": 40, "w": 20, "h": 20,
+          "x": 40,
+          "y": 40,
+          "w": 20,
+          "h": 20,
           "resize": "fit",
           "opacity": 90
         }
@@ -49,12 +52,15 @@
       "duration": 2,
       "visuals": [
         {
-            "id": "s_moving_color",
-            "kind": "colour",
-            "src": "green",
-            "at": 3,
-            "duration": 2,
-            "x": 10, "y": 10, "w": 15, "h": 15
+          "id": "s_moving_color",
+          "kind": "colour",
+          "src": "green",
+          "at": 3,
+          "duration": 2,
+          "x": 10,
+          "y": 10,
+          "w": 15,
+          "h": 15
         }
       ]
     }
@@ -63,7 +69,10 @@
     "id": "global_overlay_logo",
     "kind": "image",
     "src": "tests/renderer/integration/media/test_image.png",
-    "w": 15, "h": 10, "x": 80, "y": 5,
+    "w": 15,
+    "h": 10,
+    "x": 80,
+    "y": 5,
     "opacity": 75,
     "resize": "stretch"
   }

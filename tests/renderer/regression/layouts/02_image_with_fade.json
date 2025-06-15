@@ -19,7 +19,10 @@
           "kind": "image",
           "src": "tests/renderer/integration/media/test_image.png",
           "duration": 3,
-          "x": 10, "y": 10, "w": 80, "h": 80,
+          "x": 10,
+          "y": 10,
+          "w": 80,
+          "h": 80,
           "resize": "fit"
         }
       ]
