@@ -1,0 +1,29 @@
+{
+  "version": "v1",
+  "canvas": {
+    "width": 320,
+    "height": 240,
+    "fps": 15
+  },
+  "sources": [
+    { "id": "s_red", "url": "red", "kind": "colour" },
+    { "id": "s_img", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" }
+  ],
+  "blocks": [
+    {
+      "id": "b_bg_red",
+      "sourceId": "s_red",
+      "start": 0,
+      "duration": 2,
+      "zIndex": 0
+    },
+    {
+      "id": "b_image",
+      "sourceId": "s_img",
+      "start": 0,
+      "duration": 2,
+      "zIndex": 1,
+      "width": 0.25, "height": 0.25, "x": 0.375, "y": 0.375
+    }
+  ]
+}

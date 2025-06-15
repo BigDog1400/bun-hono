@@ -1,0 +1,5 @@
+This is a placeholder for a short MP3 audio file (e.g., 1 second of silence).
+A real MP3 file is needed for FFmpeg to process it.
+Example: Use Audacity or ffmpeg to generate a 1-second silent MP3.
+`ffmpeg -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -t 1 -q:a 9 test_audio.mp3`
+MD5 (example of a 1s silent MP3): c2dddf08542004d786197f976715f000

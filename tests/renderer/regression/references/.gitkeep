@@ -1,0 +1,5 @@
+Directory for reference videos (conceptual for now).
+Actual reference videos would be stored here for perceptual diffing.
+These would be .mp4 files and should be in .gitignore if large,
+or managed via Git LFS.
+For now, this directory is a placeholder for the concept.

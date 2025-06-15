@@ -41,17 +41,19 @@ Thumbs.db
 
 # Testing
 coverage/
+tests/renderer/integration/output/
+tests/renderer/regression/output/
 
 # Temporary files
 *.tmp
 *.temp
 
 # Added by Task Master AI
-logs
+# logs # Already covered
 dev-debug.log
 # Dependency directories
-.idea
-.vscode
+# .idea # Already covered
+# .vscode # Already covered
 # OS specific
 # Task files
 tasks.json
