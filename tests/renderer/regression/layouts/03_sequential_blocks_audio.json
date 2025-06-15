@@ -1,34 +1,55 @@
 {
-  "version": "v1",
+  "spec": "layout/v1",
   "canvas": {
-    "width": 320,
-    "height": 240,
+    "w": 320,
+    "h": 240,
     "fps": 15
   },
-  "sources": [
-    { "id": "s_img", "url": "tests/renderer/integration/media/test_image.png", "kind": "image" },
-    { "id": "s_green", "url": "green", "kind": "colour" },
-    { "id": "s_audio", "url": "tests/renderer/integration/media/test_audio.mp3", "kind": "audio", "duration": 1 }
-  ],
   "blocks": [
     {
-      "id": "b_image_seq1",
-      "sourceId": "s_img",
-      "start": 0,
-      "duration": 2
+      "id": "block1_image",
+      "duration": 2,
+      "visuals": [
+        {
+          "id": "s_img_seq1",
+          "kind": "image",
+          "src": "tests/renderer/integration/media/test_image.png",
+          "duration": 2
+        }
+      ]
     },
     {
-      "id": "b_green_seq2",
-      "sourceId": "s_green",
-      "start": 2,
-      "duration": 1
-    },
-    {
-      "id": "b_audio_seq3",
-      "sourceId": "s_audio",
-      "start": 3,
+      "id": "block2_green",
       "duration": 1,
-      "volume": 75
+      "visuals": [
+        {
+          "id": "s_green_seq2",
+          "kind": "colour",
+          "src": "green",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "id": "block3_audio",
+      "duration": 1,
+      "visuals": [
+        {
+          "id": "s_black_placeholder_for_audio",
+          "kind": "colour",
+          "src": "black",
+          "duration": 1
+        }
+      ],
+      "audio": [
+        {
+          "id": "s_audio_seq3",
+          "kind": "audio",
+          "src": "tests/renderer/integration/media/test_audio.mp3",
+          "durationFromSource": true,
+          "volume": 75
+        }
+      ]
     }
   ]
 }

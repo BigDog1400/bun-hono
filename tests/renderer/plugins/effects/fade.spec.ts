@@ -1,4 +1,6 @@
 import { expect, test, describe, beforeEach, vi } from 'bun:test';
+// Ensure plugin is registered by importing its module
+import '../../../../src/renderer/plugins/effects/fade';
 import { effectRegistry } from '../../../../src/renderer/core/PluginRegistry';
 import { FilterGraphBuilder } from '../../../../src/renderer/core/FilterGraphBuilder';
 import { CTClip, CTEffect } from '../../../../src/renderer/core/CanonicalTimeline';

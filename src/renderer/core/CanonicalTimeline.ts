@@ -105,8 +105,10 @@ export interface CanonicalTimeline {
 const DEFAULT_FPS = 30;
 const DEFAULT_CANVAS_WIDTH = 1920;
 const DEFAULT_CANVAS_HEIGHT = 1080;
-const DEFAULT_IMAGE_DURATION = 5; // seconds, if not otherwise specified
-const DEFAULT_COLOR_DURATION = 5; // seconds, for a color block without explicit duration
+// const DEFAULT_IMAGE_DURATION = 5; // This was used if block.duration and source.duration for image were missing
+// const DEFAULT_COLOR_DURATION = 5; // This was for color block without explicit duration
+const DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT = 2; // Used if a block of image/colour has no duration.
+
 
 /**
  * Converts a validated LayoutDocument (LayoutV1) into a CanonicalTimeline.
@@ -151,23 +153,38 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
 
     // Duration: FR-106 (Explicit), FR-107 (Implicit from Video/Audio)
     // For now, use explicit duration or source duration for media, or a default for images/colors.
-    let clipDuration = block.duration;
-    if (source.kind === 'image' && !clipDuration) {
-      clipDuration = source.duration || DEFAULT_IMAGE_DURATION;
-    } else if ((source.kind === 'video' || source.kind === 'audio') && !clipDuration) {
-      if (source.duration === undefined || source.duration === null) {
-        // Here, we would ideally probe the media file if duration is not set.
-        // For now, we'll throw an error or use a placeholder if not provided.
-        console.warn(`Duration not specified for ${source.kind} source ${source.id} in block ${block.id}, and probing is not yet implemented. Defaulting might be needed.`);
-        // Fallback to a default or make it required in Zod for video/audio if not probeable
-        clipDuration = source.duration || DEFAULT_IMAGE_DURATION; // Placeholder if not set
-      } else {
-        clipDuration = source.duration;
+    // This logic processes the simplified Block structure {id, sourceId, start, duration}
+    // It does not yet process the PRD LayoutV1 structure with blocks[].visuals[] etc.
+
+    let clipDuration: number | undefined = block.duration; // Explicit duration from the block definition
+
+    if (clipDuration === undefined || clipDuration === null || clipDuration <= 0) {
+      // Block duration is not specified or invalid, try to infer or use default
+      if (source.kind === 'video' || source.kind === 'audio') {
+        if (source.duration !== undefined && source.duration !== null && source.duration > 0) {
+          clipDuration = source.duration;
+        } else {
+          // If block duration was explicitly invalid (e.g. 0 or negative), it's already caught by the outer if.
+          // This path is for when block.duration was undefined/null.
+          console.warn(`Block ${block.id} (source ${source.id}, kind ${source.kind}) has no explicit duration, and its media source also lacks a valid duration. Skipping.`);
+          continue;
+        }
+      } else if (source.kind === 'image' || source.kind === 'colour') {
+        // For images/colors, if block has no duration (or was invalid and thus reset to undefined by clipDuration init), apply a default.
+        // source.duration for image/color is often Infinity or not set, so not useful here for block duration.
+        const oldBlockDuration = block.duration; // Keep to check if it was explicitly invalid
+        clipDuration = DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT;
+        if (oldBlockDuration !== undefined && oldBlockDuration !== null && oldBlockDuration <=0) {
+            console.warn(`Block ${block.id} (source ${source.id}, kind ${source.kind}) had invalid explicit duration ${oldBlockDuration}. Using default: ${clipDuration}s.`);
+        } else {
+            // console.log(`Block ${block.id} (source ${source.id}, kind ${source.kind}) has no explicit duration. Using default: ${clipDuration}s.`);
+        }
       }
     }
 
+    // Final check for any unresolved duration issues
     if (clipDuration === undefined || clipDuration === null || clipDuration <=0) {
-        console.warn(`Invalid or zero duration for block ${block.id} with source ${source.id}. Skipping.`);
+        console.warn(`Skipping block ${block.id} (source ${source.id}, kind ${source.kind}) due to unresolved zero or invalid duration: ${clipDuration}.`);
         continue;
     }
 

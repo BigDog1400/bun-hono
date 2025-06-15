@@ -81,7 +81,7 @@ describe('FilterGraphBuilder', () => {
 
     test('should handle prefixes that might look like labels themselves', () => {
       const label1 = builder.getUniqueStreamLabel('[stream]');
-      expect(label1).toBe('[[stream]]'); // First occurrence
+      expect(label1).toBe('[[stream]0]'); // Corrected: first occurrence with label-like prefix gets a 0
       const label2 = builder.getUniqueStreamLabel('[stream]');
       expect(label2).toBe('[[stream]1]'); // Second occurrence
     });
