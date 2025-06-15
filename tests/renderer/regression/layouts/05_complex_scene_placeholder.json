@@ -13,8 +13,7 @@
   "background": {
     "id": "global_bg",
     "kind": "colour",
-    "src": "#303030",
-    "comment": "Global dark grey background, should be behind all blocks"
+    "src": "#303030"
   },
   "blocks": [
     {
@@ -64,10 +63,8 @@
     "id": "global_overlay_logo",
     "kind": "image",
     "src": "tests/renderer/integration/media/test_image.png",
-    "comment": "Using image as placeholder logo. Should be above all blocks.",
     "w": 15, "h": 10, "x": 80, "y": 5,
     "opacity": 75,
     "resize": "stretch"
-  },
-  "comment": "This JSON uses 'background' and 'overlay' which require convertToCanonicalTimeline to be updated for proper processing."
+  }
 }

@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, afterEach, mock } from 'bun:test';
+import { expect, test, describe, beforeEach, afterEach, mock, jest } from 'bun:test'; // Added jest
 import { VideoRenderer, RendererOptions, RenderResult } from '../../../src/renderer/core/VideoRenderer';
 import { LayoutV1 } from '../../../src/renderer/schema/layout-v1';
 import { CanonicalTimeline, CTClip, CTSource, CTEffect } from '../../../src/renderer/core/CanonicalTimeline'; // Keep actual types
@@ -9,7 +9,7 @@ import { sourceRegistry, effectRegistry, transitionRegistry } from '../../../src
 // --- Bun Mocks ---
 
 // Mock for convertToCanonicalTimeline
-const mockConvertToCanonicalTimeline = mock.fn();
+const mockConvertToCanonicalTimeline = jest.fn(); // Replaced mock.fn()
 mock.module('../../../src/renderer/core/CanonicalTimeline', () => ({
   convertToCanonicalTimeline: mockConvertToCanonicalTimeline,
   // Export other types if VideoRenderer file imports them directly from CanonicalTimeline module
@@ -17,22 +17,22 @@ mock.module('../../../src/renderer/core/CanonicalTimeline', () => ({
 }));
 
 // Mock for FilterGraphBuilder
-const mockFGBAddInput = mock.fn();
-const mockFGBAddClipToGraph = mock.fn();
-const mockFGBBuildCommandArgs = mock.fn().mockReturnValue(['ffmpeg_args_mock']); // Default mock return
+const mockFGBAddInput = jest.fn(); // Replaced mock.fn()
+const mockFGBAddClipToGraph = jest.fn(); // Replaced mock.fn()
+const mockFGBBuildCommandArgs = jest.fn().mockReturnValue(['ffmpeg_args_mock']); // Replaced mock.fn()
 const mockFGBInstance = {
   addInput: mockFGBAddInput,
   addClipToGraph: mockFGBAddClipToGraph,
   buildCommandArgs: mockFGBBuildCommandArgs,
-  // build: mock.fn().mockReturnValue('filter_complex_string_mock'), // if build() were used
+  // build: jest.fn().mockReturnValue('filter_complex_string_mock'), // if build() were used
 };
-const mockFilterGraphBuilderConstructor = mock.fn(() => mockFGBInstance);
+const mockFilterGraphBuilderConstructor = jest.fn(() => mockFGBInstance); // Replaced mock.fn()
 mock.module('../../../src/renderer/core/FilterGraphBuilder', () => ({
   FilterGraphBuilder: mockFilterGraphBuilderConstructor,
 }));
 
 // Mock for ffmpeg-executor
-const mockExecuteFFmpegCommand = mock.fn();
+const mockExecuteFFmpegCommand = jest.fn(); // Replaced mock.fn()
 mock.module('../../../src/renderer/utils/ffmpeg-executor', () => ({
   executeFFmpegCommand: mockExecuteFFmpegCommand,
 }));
@@ -93,8 +93,8 @@ describe('VideoRenderer', () => {
   });
 
   test('successful render path - high-level orchestration', async () => {
-    // const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {}); // Bun's mock doesn't have vi.spyOn
-    // For console logs, if needed, could mock global console.log with mock.fn() but that's more involved.
+    // const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); // Bun's mock doesn't have vi.spyOn
+    // For console logs, if needed, could mock global console.log with jest.fn() but that's more involved.
     // The ffmpeg-executor now handles logging, so VideoRenderer console output is less critical.
 
     const result = await renderer.render(mockDoc);
@@ -129,7 +129,7 @@ describe('VideoRenderer', () => {
     expect(mockExecuteFFmpegCommand).toHaveBeenCalledWith(
       ['ffmpeg_args_mock'], // This was the default return from mockFGBBuildCommandArgs
       {
-        ffmpegPath: mockOptions.ffmpegPath, // VideoRenderer sets default 'ffmpeg' if not in options
+        ffmpegPath: mockOptions.ffmpegPath || 'ffmpeg',
         enableVerboseLogging: mockOptions.enableVerboseLogging,
       }
     );
