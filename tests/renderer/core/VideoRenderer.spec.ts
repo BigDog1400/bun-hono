@@ -65,23 +65,44 @@ describe('VideoRenderer', () => {
     mockDoc = {
       version: 'v1',
       sources: [{ id: 's1', url: 'src1.mp4', kind: 'video', duration: 10 }],
-      blocks: [{ id: 'b1', sourceId: 's1', start: 0, duration: 10 } as any],
+      // This old block structure is not what LayoutV1 expects from PRD.
+      // However, VideoRenderer.render() takes LayoutV1, and convertToCanonicalTimeline is mocked.
+      // So, the structure of mockDoc is less critical than the structure of mockTimeline.
+      blocks: [{ id: 'b1', visuals: [{id: 'v1', kind: 'video', src: 'src1.mp4', duration: 10}] }],
     };
 
-    const source1: CTSource = { id: 's1', url: 'src1.mp4', resolvedPath: 'src1.mp4', kind: 'video', duration: 10 };
+    // Define mock processed sources
+    const mockProcessedSources: CTSource[] = [
+      { uniqueId: 's1_vid_processed', id: 's1', url: 'src1.mp4', resolvedPath: 'src1.mp4', kind: 'video', duration: 10 },
+      // Add another if needed for more complex tests
+    ];
+
+    // Update mock clips to use sourceIdRef
     const clip1: CTClip = {
-      id: 'c1', sourceId: 's1', kind: 'video', src: 'src1.mp4',
+      id: 'c1',
+      sourceIdRef: 's1_vid_processed', // Link to processed source
+      kind: 'video',
+      src: 'src1.mp4', // Usually from processedSource.resolvedPath
       absoluteStartTime: 0, duration: 5, zIndex: 1,
       effects: [{ id: 'e1', kind: 'fade', params: { type: 'in', duration: 1 } } as CTEffect],
+      // Other necessary CTClip props like x,y,width,height,opacity,volume if addClipToGraph uses them
     };
     const clip2: CTClip = {
-      id: 'c2', sourceId: 's1', kind: 'video', src: 'src1.mp4',
+      id: 'c2',
+      sourceIdRef: 's1_vid_processed', // Link to processed source
+      kind: 'video',
+      src: 'src1.mp4',
       absoluteStartTime: 5, duration: 5, zIndex: 1,
     };
+
     mockTimeline = {
-      version: 'v1', canvasWidth: 1920, canvasHeight: 1080, fps: 30,
-      sources: [source1],
+      version: 'v1',
+      canvasWidth: 1920,
+      canvasHeight: 1080,
+      fps: 30,
+      processedSources: mockProcessedSources, // Add processed sources
       clips: [clip1, clip2],
+      transitions: [], // Initialize if needed
     };
 
     mockConvertToCanonicalTimeline.mockResolvedValue(mockTimeline);
@@ -105,8 +126,9 @@ describe('VideoRenderer', () => {
     expect(mockFilterGraphBuilderConstructor).toHaveBeenCalledTimes(1);
     // expect(mockFilterGraphBuilderConstructor).toHaveBeenCalledWith({ /* options if passed */ });
 
-    expect(mockFGBAddInput).toHaveBeenCalledTimes(mockTimeline.sources.length);
-    for (const source of mockTimeline.sources) {
+    // VideoRenderer's current implementation (from Turn 23) iterates timeline.sources for global addInput calls
+    expect(mockFGBAddInput).toHaveBeenCalledTimes(mockTimeline.processedSources.length);
+    for (const source of mockTimeline.processedSources) {
       expect(mockFGBAddInput).toHaveBeenCalledWith(source.resolvedPath);
     }
 
@@ -114,7 +136,7 @@ describe('VideoRenderer', () => {
     for (const clip of mockTimeline.clips) {
       expect(mockFGBAddClipToGraph).toHaveBeenCalledWith(
         clip,
-        mockTimeline.sources,
+        mockTimeline.processedSources, // Should pass processedSources
         sourceRegistry,
         effectRegistry,
         transitionRegistry

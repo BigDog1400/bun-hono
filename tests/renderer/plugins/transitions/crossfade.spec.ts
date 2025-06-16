@@ -159,8 +159,9 @@ describe('CrossFadeTransitionRenderer', () => {
         // The code itself did not adjust offset to 0 in the warning path, it just warned.
         // Let's verify the calculated offset.
         const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(c => c[0].includes('xfade'))![0];
-        const expectedOffset = mockFromClip.duration - mockTransition.duration; // 0.5 - 1 = -0.5
-        expect(videoFilterCall).toContain(`offset=${expectedOffset}`);
+        // const expectedOffset = mockFromClip.duration - mockTransition.duration; // This was -0.5
+        // The plugin calculates offset = Math.max(0, fromClip.duration - transitionDuration), so it will be 0.
+        expect(videoFilterCall).toContain('offset=0'); // Corrected expectation
         consoleWarnSpy.mockRestore();
       });
 

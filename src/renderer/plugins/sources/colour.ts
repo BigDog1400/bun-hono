@@ -60,7 +60,7 @@ class ColourSourceRenderer implements SourceRenderer {
       videoFilter += `,lutalpha=val=${opacity}`;
     }
 
-    videoFilter += `[${videoStreamName}]`;
+    videoFilter += videoStreamName; // Corrected: videoStreamName already has brackets
     builder.addFilter(videoFilter);
 
     // Colours don't produce audio.
