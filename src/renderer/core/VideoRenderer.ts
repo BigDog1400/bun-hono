@@ -84,17 +84,17 @@ export class VideoRenderer {
       if (this.options.enableVerboseLogging) console.log('VideoRenderer: Building Filter Graph...');
       const builder = new FilterGraphBuilder({ /* pass relevant options from this.options if needed */ });
 
-      // Add all sources from the timeline as inputs to FFmpeg
+      // Add all sources from timeline.processedSources as inputs to FFmpeg
       // This ensures FFmpeg knows about all files referenced by sources.
       // The SourceRenderer will then use the input index.
-      const sourceInputMap = new Map<string, number>(); // Map source.id to input index
-      for (const source of timeline.sources) {
-        // Assuming source.resolvedPath is the actual file path or resolvable URL
-        if (source.resolvedPath) {
-          const inputIndex = builder.addInput(source.resolvedPath);
-          sourceInputMap.set(source.id, inputIndex);
-        } else {
-          console.warn(`VideoRenderer: Source ${source.id} has no resolvedPath. It might be a non-file source (e.g. color) or an error.`);
+      // const sourceInputMap = new Map<string, number>(); // Not directly used by VideoRenderer if builder manages this map internally
+      for (const source of timeline.processedSources || []) { // Changed from timeline.sources
+        // CTSource (which is SourceV1 & {uniqueId, resolvedPath}) has resolvedPath from original src.
+        if (source.resolvedPath) { // resolvedPath should be the actual file path or resolvable URL
+          builder.addInput(source.resolvedPath);
+          // sourceInputMap.set(source.uniqueId, inputIndex); // Store by uniqueId if map is needed here
+        } else if (source.kind !== 'colour') { // Colours don't have/need resolvedPath for input
+          console.warn(`VideoRenderer: Source ${source.id || source.uniqueId} (kind: ${source.kind}) has no resolvedPath. It might be a non-file source not yet handled or an error.`);
         }
       }
 
@@ -175,7 +175,8 @@ export class VideoRenderer {
         // 4. Compositing/Mixing streams
 
         // For now, let's assume a high-level call per clip that the builder will handle:
-        builder.addClipToGraph(clip, timeline.sources, sourceRegistry, effectRegistry, transitionRegistry);
+        // Pass timeline.processedSources instead of timeline.sources
+        builder.addClipToGraph(clip, timeline.processedSources || [], sourceRegistry, effectRegistry, transitionRegistry);
 
       } // End of clips loop
 

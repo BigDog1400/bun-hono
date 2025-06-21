@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, mock, spyOn, Mock } from 'bun:test';
+import { expect, test, describe, beforeEach, jest } from 'bun:test'; // Replaced vi with jest
 // Ensure plugin is registered by importing its module
 import '../../../../src/renderer/plugins/transitions/crossfade';
 import { transitionRegistry } from '../../../../src/renderer/core/PluginRegistry';
@@ -26,13 +26,13 @@ describe('CrossFadeTransitionRenderer', () => {
 
   beforeEach(() => {
     mockBuilder = {
-      getUniqueStreamLabel: mock((prefix: string) => `[${prefix}_mocklabel]`),
-      addFilter: mock((filterSpec: string) => {}),
+      getUniqueStreamLabel: jest.fn((prefix: string) => `[${prefix}_mocklabel]`), // vi.fn -> jest.fn
+      addFilter: jest.fn((filterSpec: string) => {}), // vi.fn -> jest.fn
     } as any;
 
     mockFromClip = {
       id: 'c_from',
-      sourceIdRef: 's_from',
+      sourceId: 's_from',
       kind: 'video',
       src: 'from.mp4',
       absoluteStartTime: 0,
@@ -42,7 +42,7 @@ describe('CrossFadeTransitionRenderer', () => {
 
     mockToClip = {
       id: 'c_to',
-      sourceIdRef: 's_to',
+      sourceId: 's_to',
       kind: 'video',
       src: 'to.mp4',
       absoluteStartTime: 5, // Assuming it starts after fromClip for context
@@ -81,8 +81,8 @@ describe('CrossFadeTransitionRenderer', () => {
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(2);
 
-      const videoFilterCall = (mockBuilder.addFilter as Mock<any>).mock.calls.find((c): c is [string] => typeof c[0] === 'string' && c[0].includes('xfade'))![0];
-      const audioFilterCall = (mockBuilder.addFilter as Mock<any>).mock.calls.find((c): c is [string] => typeof c[0] === 'string' && c[0].includes('acrossfade'))![0];
+      const videoFilterCall = (mockBuilder.addFilter as jest.Mock).mock.calls.find(c => c[0].includes('xfade'))![0]; // vi.mocked -> as jest.Mock
+      const audioFilterCall = (mockBuilder.addFilter as jest.Mock).mock.calls.find(c => c[0].includes('acrossfade'))![0]; // vi.mocked -> as jest.Mock
 
       const expectedOffset = mockFromClip.duration - mockTransition.duration; // 5 - 1 = 4
       expect(videoFilterCall).toBe(`[${inputStreams.fromVideo}][${inputStreams.toVideo}]xfade=transition=fade:duration=${mockTransition.duration}:offset=${expectedOffset}[${expectedVideoOut}]`);
@@ -98,7 +98,7 @@ describe('CrossFadeTransitionRenderer', () => {
       expect(result.video).toBe(expectedVideoOut);
       expect(result.audio).toBeUndefined();
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1); // Only xfade
-      expect((mockBuilder.addFilter as Mock<any>).mock.calls[0][0]).toContain('xfade');
+      expect((mockBuilder.addFilter as jest.Mock).mock.calls[0][0]).toContain('xfade'); // vi.mocked -> as jest.Mock
     });
 
     test('should apply audio-only cross-fade if video streams are missing', () => {
@@ -110,13 +110,13 @@ describe('CrossFadeTransitionRenderer', () => {
       expect(result.audio).toBe(expectedAudioOut);
       expect(result.video).toBeUndefined();
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1); // Only acrossfade
-      expect((mockBuilder.addFilter as Mock<any>).mock.calls[0][0]).toContain('acrossfade');
+      expect((mockBuilder.addFilter as jest.Mock).mock.calls[0][0]).toContain('acrossfade'); // vi.mocked -> as jest.Mock
     });
 
     describe('Edge Cases and Fallbacks', () => {
       test('should return toClip streams if transition duration is 0, and log warning', () => {
         mockTransition.duration = 0;
-        const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {}); // vi.spyOn -> jest.spyOn
 
         const result = crossfadeRenderer.apply(mockBuilder, mockFromClip, mockToClip, mockTransition, inputStreams);
 
@@ -133,7 +133,7 @@ describe('CrossFadeTransitionRenderer', () => {
         mockTransition.duration = 0;
         inputStreams.toVideo = undefined;
         inputStreams.toAudio = undefined;
-        const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {}); // vi.spyOn -> jest.spyOn
 
         const result = crossfadeRenderer.apply(mockBuilder, mockFromClip, mockToClip, mockTransition, inputStreams);
 
@@ -145,7 +145,7 @@ describe('CrossFadeTransitionRenderer', () => {
 
       test('should log warning if fromClip duration is less than transition duration for xfade', () => {
         mockFromClip.duration = 0.5; // Less than transition.duration = 1
-        const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {}); // vi.spyOn -> jest.spyOn
 
         crossfadeRenderer.apply(mockBuilder, mockFromClip, mockToClip, mockTransition, inputStreams);
 
@@ -158,7 +158,7 @@ describe('CrossFadeTransitionRenderer', () => {
         // The plugin code had a specific warning for this, but the xfade filter itself might error with negative offset.
         // The code itself did not adjust offset to 0 in the warning path, it just warned.
         // Let's verify the calculated offset.
-        const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(c => c[0].includes('xfade'))![0];
+        const videoFilterCall = (mockBuilder.addFilter as jest.Mock).mock.calls.find(c => c[0].includes('xfade'))![0]; // vi.mocked -> as jest.Mock
         // const expectedOffset = mockFromClip.duration - mockTransition.duration; // This was -0.5
         // The plugin calculates offset = Math.max(0, fromClip.duration - transitionDuration), so it will be 0.
         expect(videoFilterCall).toContain('offset=0'); // Corrected expectation
@@ -167,7 +167,7 @@ describe('CrossFadeTransitionRenderer', () => {
 
       test('should pass through toVideo if fromVideo is missing, and log', () => {
         inputStreams.fromVideo = undefined;
-        const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); // vi.spyOn -> jest.spyOn
         const result = crossfadeRenderer.apply(mockBuilder, mockFromClip, mockToClip, mockTransition, inputStreams);
 
         expect(result.video).toBe(inputStreams.toVideo);
@@ -180,7 +180,7 @@ describe('CrossFadeTransitionRenderer', () => {
 
       test('should pass through fromVideo if toVideo is missing, and log', () => {
         inputStreams.toVideo = undefined;
-        const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); // vi.spyOn -> jest.spyOn
         const result = crossfadeRenderer.apply(mockBuilder, mockFromClip, mockToClip, mockTransition, inputStreams);
 
         expect(result.video).toBe(inputStreams.fromVideo);
@@ -203,7 +203,7 @@ describe('CrossFadeTransitionRenderer', () => {
       // Similar tests for audio fallbacks
        test('should pass through toAudio if fromAudio is missing, and log', () => {
         inputStreams.fromAudio = undefined;
-        const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); // vi.spyOn -> jest.spyOn
         const result = crossfadeRenderer.apply(mockBuilder, mockFromClip, mockToClip, mockTransition, inputStreams);
 
         expect(result.audio).toBe(inputStreams.toAudio);
@@ -218,7 +218,7 @@ describe('CrossFadeTransitionRenderer', () => {
 
       test('should pass through fromAudio if toAudio is missing, and log', () => {
         inputStreams.toAudio = undefined;
-        const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); // vi.spyOn -> jest.spyOn
         const result = crossfadeRenderer.apply(mockBuilder, mockFromClip, mockToClip, mockTransition, inputStreams);
 
         expect(result.audio).toBe(inputStreams.fromAudio);

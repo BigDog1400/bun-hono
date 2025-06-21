@@ -22,7 +22,7 @@ export interface CTTransition {
 
 export interface CTClip {
   id: string;
-  sourceIdRef: string; // Changed from sourceIdRef?: string to string;
+  sourceIdRef: string;
 
   kind: CTSource['kind'];
   src: string;
@@ -47,7 +47,7 @@ export interface CanonicalTimeline {
   canvasWidth: number;
   canvasHeight: number;
   fps: number;
-  processedSources: CTSource[]; // Added
+  processedSources: CTSource[];
   clips: CTClip[];
   transitions?: CTTransition[];
   canvasBackgroundColor?: string;
@@ -80,7 +80,7 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
   const Z_BACKGROUND = 0;
   const Z_BLOCK_BASE = 100;
   const Z_OVERLAY_BASE = 10000;
-  let currentBlockGlobalZ = Z_BLOCK_BASE;
+  // let currentBlockGlobalZ = Z_BLOCK_BASE; // Not used in current z-index logic per block
 
   // 1. Process Canvas
   const canvasWidth = doc.canvas.w;
@@ -94,7 +94,7 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
     const ctSource: CTSource = {
       ...sourceV1,
       uniqueId: sourceUniqueId,
-      resolvedPath: sourceV1.src, // Basic assignment, actual resolution might be more complex
+      resolvedPath: sourceV1.src,
     };
     processedSources.push(ctSource);
     return ctSource;
@@ -113,7 +113,7 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
       kind: processedBgSource.kind,
       src: processedBgSource.src,
       absoluteStartTime: 0,
-      duration: bgDuration, // Initial duration, might be updated later
+      duration: bgDuration,
       zIndex: Z_BACKGROUND,
       opacity: processedBgSource.opacity ?? 100,
       resizeMode: processedBgSource.resize ?? 'fill',
@@ -179,7 +179,7 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
       });
     };
 
-    processBlockSourceElements(blockDef.visuals, 'vis', currentBlockGlobalZ + blockIndex * 10);
+    processBlockSourceElements(blockDef.visuals, 'vis', Z_BLOCK_BASE + blockIndex * 10); // Adjusted base Z for blocks
     processBlockSourceElements(blockDef.audio, 'aud', 0);
 
     if (blockExplicitDuration !== undefined && blockExplicitDuration !== null && blockExplicitDuration > 0) {
@@ -240,15 +240,9 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
     const bgSourceDefinition = doc.background;
     if (bgSourceDefinition && bgSourceDefinition.duration === undefined) {
         bgClip.duration = currentTime;
-    } else if (bgSourceDefinition && bgSourceDefinition.duration !== undefined && bgClip.duration !== currentTime) {
-      // If bgSource.duration was provided and used for bgClip.duration initially,
-      // and currentTime (max of other things) is greater, should bgClip.duration extend?
-      // Current logic: if bgSource.duration is set, it's respected. If not, it fills.
-      // This is okay. The initial bgDuration could be from DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT
-      // if bgSource.duration was undefined. In that specific case, it should be updated.
-      if (bgClip.duration === DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT && bgSourceDefinition && bgSourceDefinition.duration === undefined) {
+    } else if (bgClip.duration === DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT && bgSourceDefinition && bgSourceDefinition.duration === undefined) {
+        // This case specifically updates if bgClip got the default static duration AND original doc.background had no duration.
         bgClip.duration = currentTime;
-      }
     }
   }
 
