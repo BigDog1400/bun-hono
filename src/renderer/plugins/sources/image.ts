@@ -70,7 +70,7 @@ class ImageSourceRenderer implements SourceRenderer {
       videoFilter += `,format=rgba,lutalpha=val=${opacity}`;
     }
 
-    videoFilter += `[${videoStreamName}]`;
+    videoFilter += videoStreamName; // Corrected: videoStreamName already has brackets
     builder.addFilter(videoFilter);
 
     // Images typically don't have audio.

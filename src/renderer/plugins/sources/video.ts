@@ -91,7 +91,7 @@ class VideoSourceRenderer implements SourceRenderer {
     if (opacity < 1.0) {
       videoFilter += `,format=rgba,lutalpha=val=${opacity}`;
     }
-    videoFilter += `[${videoStreamName}]`;
+    videoFilter += videoStreamName; // Corrected: videoStreamName already has brackets
     builder.addFilter(videoFilter);
     results.video = videoStreamName;
 
@@ -115,7 +115,7 @@ class VideoSourceRenderer implements SourceRenderer {
     }
     // If no volume change, just pass it through.
     // To ensure it's part of the graph and gets a label:
-    audioFilter += (volume !== 1.0 ? `` : `anull`) + `[${audioStreamName}]`;
+    audioFilter += (volume !== 1.0 ? `` : `anull`) + audioStreamName; // Corrected: audioStreamName already has brackets
 
     // IMPORTANT: Add filter only if an audio stream is likely.
     // This is a guess. A real impl needs to know if inputIndex:a exists.

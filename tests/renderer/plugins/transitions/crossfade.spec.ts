@@ -152,9 +152,16 @@ describe('CrossFadeTransitionRenderer', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           `CrossFadeTransitionRenderer: fromClip ${mockFromClip.id} duration (${mockFromClip.duration}s) is less than transition duration (${mockTransition.duration}s). Xfade might behave unexpectedly or error. Adjusting offset to 0.`
         );
-        const videoFilterCall = (mockBuilder.addFilter as Mock<any>).mock.calls.find((c): c is [string] => typeof c[0] === 'string' && c[0].includes('xfade'))![0];
-        const expectedOffset = mockFromClip.duration - mockTransition.duration; // 0.5 - 1 = -0.5
-        expect(videoFilterCall).toContain(`offset=${expectedOffset}`);
+        // The filter will be called with offset potentially adjusted or as originally calculated (implementation detail)
+        // The current implementation recalculates offset inside.
+        // If fromClip.duration (0.5) < transition.duration (1), offset becomes -0.5.
+        // The plugin code had a specific warning for this, but the xfade filter itself might error with negative offset.
+        // The code itself did not adjust offset to 0 in the warning path, it just warned.
+        // Let's verify the calculated offset.
+        const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(c => c[0].includes('xfade'))![0];
+        // const expectedOffset = mockFromClip.duration - mockTransition.duration; // This was -0.5
+        // The plugin calculates offset = Math.max(0, fromClip.duration - transitionDuration), so it will be 0.
+        expect(videoFilterCall).toContain('offset=0'); // Corrected expectation
         consoleWarnSpy.mockRestore();
       });
 
