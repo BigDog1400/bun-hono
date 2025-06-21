@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, vi } from 'bun:test';
+import { expect, test, describe, beforeEach, spyOn, mock, type Mock } from 'bun:test';
 // Ensure plugin is registered by importing its module
 import '../../../../src/renderer/plugins/sources/video';
 import { sourceRegistry } from '../../../../src/renderer/core/PluginRegistry';
@@ -14,29 +14,34 @@ if (!VideoSourceRendererInstance) {
 const videoRenderer = VideoSourceRendererInstance;
 
 describe('VideoSourceRenderer', () => {
+  // Declare the mockBuilder with the real, full type
   let mockBuilder: FilterGraphBuilder;
   let mockClip: CTClip;
   let mockSource: CTSource;
+
+  // Define reusable types for our mocks to keep casting clean
+  type AddFilterMock = Mock<(filterSpec: string) => void>;
+  type GetInputIndexMock = Mock<(filePath: string) => number | undefined>;
 
   const MOCK_CANVAS_WIDTH = 1920;
   const MOCK_CANVAS_HEIGHT = 1080;
 
   beforeEach(() => {
+    // Create a partial mock object with bun's native `mock()` and cast it once
     mockBuilder = {
-      addInput: vi.fn((filePath: string) => 0),
-      getInputIndex: vi.fn((filePath: string) => 0),
-      getUniqueStreamLabel: vi.fn((prefix: string) => `[${prefix}_mocklabel]`),
-      addFilter: vi.fn((filterSpec: string) => {}),
+      addInput: mock((filePath: string) => 0),
+      getInputIndex: mock((filePath: string) => 0),
+      getUniqueStreamLabel: mock((prefix: string) => `[${prefix}_mocklabel]`),
+      addFilter: mock((filterSpec: string) => {}),
       options: { canvasWidth: MOCK_CANVAS_WIDTH, canvasHeight: MOCK_CANVAS_HEIGHT, fps: 30 },
-    } as any;
+    } as unknown as FilterGraphBuilder;
 
     mockSource = {
       id: 's_video1',
       url: 'path/to/video.mp4',
       resolvedPath: 'path/to/video.mp4',
       kind: 'video',
-      duration: 30, // Source duration
-      // For video, actual width/height might come from probe, not here
+      duration: 30,
     };
 
     mockClip = {
@@ -45,16 +50,15 @@ describe('VideoSourceRenderer', () => {
       kind: 'video',
       src: 'path/to/video.mp4',
       absoluteStartTime: 0,
-      duration: 10, // Clip duration
+      duration: 10,
       zIndex: 1,
-      // Visual props from CTClip
-      width: undefined, // Optional: relative to canvas, if not set, use canvas size or fit logic
-      height: undefined, // Optional
+      width: undefined,
+      height: undefined,
       x: 0,
       y: 0,
       opacity: 1.0,
-      resizeMode: 'cover', // Default from Zod schema for Source, assumed to be on CTClip too
-      volume: 100, // Default volume (0-100)
+      resizeMode: 'cover',
+      volume: 100,
     };
   });
 
@@ -71,11 +75,10 @@ describe('VideoSourceRenderer', () => {
     });
 
     test('should return placeholder duration and log warning if source.duration is missing', async () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
       const sourceWithoutDuration = { ...mockSource, duration: undefined };
 
       const result = await videoRenderer.probe(sourceWithoutDuration as CTSource);
-      // Implementation returns { duration: 30 } as placeholder
       expect(result).toEqual({ duration: 30 });
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         `VideoSourceRenderer: Probe for ${sourceWithoutDuration.id} - duration not available in source, returning placeholder 30s.`
@@ -92,7 +95,7 @@ describe('VideoSourceRenderer', () => {
     });
 
     test('should not call builder.addInput and log warning if source.resolvedPath is missing', () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
       const sourceWithoutPath = { ...mockSource, resolvedPath: undefined };
 
       videoRenderer.addInputs(mockBuilder, mockClip, sourceWithoutPath as CTSource);
@@ -107,7 +110,8 @@ describe('VideoSourceRenderer', () => {
 
   describe('getFilter()', () => {
     beforeEach(() => {
-      vi.mocked(mockBuilder.getInputIndex).mockReturnValue(0); // Assume input index 0
+      // Set the mock's return value by casting the specific method to its Mock type
+      (mockBuilder.getInputIndex as GetInputIndexMock).mockReturnValue(0);
     });
 
     test('should return correct video and audio filter strings and add them to builder (default props)', () => {
@@ -118,72 +122,54 @@ describe('VideoSourceRenderer', () => {
       expect(result.video).toBe(expectedVideoStreamLabel);
       expect(result.audio).toBe(expectedAudioStreamLabel);
 
-      expect(mockBuilder.addFilter).toHaveBeenCalledTimes(2); // 1 for video, 1 for audio
+      expect(mockBuilder.addFilter).toHaveBeenCalledTimes(2);
 
-      const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(call => call[0].includes('[0:v]'))![0];
-      // Default scale is to canvas width/height (current simple implementation)
+      const addFilterMock = mockBuilder.addFilter as AddFilterMock;
+      const videoFilterCall = addFilterMock.mock.calls.find(call => call[0].includes('[0:v]'))![0];
       expect(videoFilterCall).toContain(`[0:v]scale=${MOCK_CANVAS_WIDTH}:${MOCK_CANVAS_HEIGHT},setsar=1`);
-      expect(videoFilterCall).not.toContain('lutalpha'); // Opacity is 1.0
+      expect(videoFilterCall).not.toContain('lutalpha');
       expect(videoFilterCall).toEndWith(expectedVideoStreamLabel);
 
-      const audioFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(call => call[0].includes('[0:a]'))![0];
-      // expectedAudioStreamLabel already contains brackets, e.g., "[a_clip_video1_mocklabel]"
-      // The filter string should be "[0:a]anull" + expectedAudioStreamLabel
-      expect(audioFilterCall).toBe(`[0:a]anull${expectedAudioStreamLabel}`); // Corrected: No extra brackets around expectedAudioStreamLabel
+      const audioFilterCall = addFilterMock.mock.calls.find(call => call[0].includes('[0:a]'))![0];
+      expect(audioFilterCall).toBe(`[0:a]anull${expectedAudioStreamLabel}`);
     });
 
     test('video filter should include lutalpha if opacity is less than 1.0', () => {
       mockClip.opacity = 0.8;
       videoRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(call => call[0].includes('[0:v]'))![0];
+      const videoFilterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls.find(call => call[0].includes('[0:v]'))![0];
       expect(videoFilterCall).toContain(`format=rgba,lutalpha=val=${mockClip.opacity}`);
     });
 
     test('audio filter should include volume if volume is not 100', () => {
-      mockClip.volume = 60; // results in volume=0.6
+      mockClip.volume = 60;
       videoRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      const audioFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(call => call[0].includes('[0:a]'))![0];
+      const audioFilterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls.find(call => call[0].includes('[0:a]'))![0];
       expect(audioFilterCall).toContain('volume=0.6');
     });
 
     test('video filter should use clip.width/height for scaling if provided', () => {
-      mockClip.width = 0.5; // 50% of canvas width
-      mockClip.height = 0.75; // 75% of canvas height
-      const expectedScaleW = Math.floor(mockClip.width * MOCK_CANVAS_WIDTH); // 0.5 * 1920 = 960
-      const expectedScaleH = Math.floor(mockClip.height * MOCK_CANVAS_HEIGHT); // 0.75 * 1080 = 810
+      mockClip.width = 0.5;
+      mockClip.height = 0.75;
+      const expectedScaleW = Math.floor(mockClip.width * MOCK_CANVAS_WIDTH);
+      const expectedScaleH = Math.floor(mockClip.height * MOCK_CANVAS_HEIGHT);
 
       videoRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(call => call[0].includes('[0:v]'))![0];
+      const videoFilterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls.find(call => call[0].includes('[0:v]'))![0];
       expect(videoFilterCall).toContain(`scale=${expectedScaleW}:${expectedScaleH},setsar=1`);
     });
 
-    test.todo('video filter should implement resizeMode "contain" correctly', () => {
-      mockClip.resizeMode = 'contain';
-      // This would require a more complex filter: scale=w:h:force_original_aspect_ratio=decrease,pad=w:h:(ow-iw)/2:(oh-ih)/2
-      // e.g. scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1:color=black
-      // The current implementation only does simple scale. This test would fail.
-    });
-
-    test.todo('video filter should implement resizeMode "stretch" correctly', () => {
-      mockClip.resizeMode = 'stretch';
-      // This is scale=W:H without maintaining aspect ratio. This is the current default if clip W/H are set.
-      // If clip W/H are not set, it scales to canvas W/H.
-    });
-
-    test.todo('video filter should implement resizeMode "cover" correctly', () => {
-        mockClip.resizeMode = 'cover';
-      // This would require: scale=w:h:force_original_aspect_ratio=increase,crop=w:h
-      // e.g. scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080
-      // The current implementation only does simple scale. This test would fail.
-    });
+    test.todo('video filter should implement resizeMode "contain" correctly');
+    test.todo('video filter should implement resizeMode "stretch" correctly');
+    test.todo('video filter should implement resizeMode "cover" correctly');
 
     test('should return empty object if inputIndex is undefined for video source', () => {
-      vi.mocked(mockBuilder.getInputIndex).mockReturnValue(undefined);
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      (mockBuilder.getInputIndex as GetInputIndexMock).mockReturnValue(undefined);
+      const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
 
       const result = videoRenderer.getFilter(mockBuilder, mockClip, mockSource);
 
-      expect(result).toEqual({}); // Expect empty if main input (video) is missing
+      expect(result).toEqual({});
       expect(mockBuilder.addFilter).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         `VideoSourceRenderer: Input index not found for source ${mockSource.resolvedPath} of clip ${mockClip.id}. Ensure addInputs was called.`
@@ -191,15 +177,10 @@ describe('VideoSourceRenderer', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    // The VideoSourceRenderer currently optimistically creates an audio filter string.
-    // FFmpeg itself would fail if [0:a] doesn't exist for that input.
-    // The plugin doesn't (yet) know if audio exists from probe.
     test('audio filter generation is attempted even if source might not have audio', () => {
-        // This test just confirms current behavior. A more advanced plugin might skip audio filter
-        // if probe data indicated no audio track.
-        videoRenderer.getFilter(mockBuilder, mockClip, mockSource);
-        const audioFilterCallExists = vi.mocked(mockBuilder.addFilter).mock.calls.some(call => call[0].includes('[0:a]'));
-        expect(audioFilterCallExists).toBe(true);
+      videoRenderer.getFilter(mockBuilder, mockClip, mockSource);
+      const audioFilterCallExists = (mockBuilder.addFilter as AddFilterMock).mock.calls.some(call => call[0].includes('[0:a]'));
+      expect(audioFilterCallExists).toBe(true);
     });
   });
 });

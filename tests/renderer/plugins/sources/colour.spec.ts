@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, vi } from 'bun:test';
+import { expect, test, describe, beforeEach, spyOn, mock, type Mock } from 'bun:test';
 // Ensure plugin is registered by importing its module
 import '../../../../src/renderer/plugins/sources/colour';
 import { sourceRegistry } from '../../../../src/renderer/core/PluginRegistry';
@@ -14,6 +14,7 @@ if (!ColourSourceRendererInstance) {
 const colourRenderer = ColourSourceRendererInstance;
 
 describe('ColourSourceRenderer', () => {
+  // 1. Declare the variable with the real, full type.
   let mockBuilder: FilterGraphBuilder;
   let mockClip: CTClip;
   let mockSource: CTSource;
@@ -22,19 +23,20 @@ describe('ColourSourceRenderer', () => {
   const MOCK_CANVAS_HEIGHT = 720;
 
   beforeEach(() => {
+    // 2. Create a partial object with only the properties we need for the test,
+    //    then cast it to the full type upon assignment.
     mockBuilder = {
-      addInput: vi.fn(), // Should not be called by colour renderer
-      getInputIndex: vi.fn(), // Not relevant for colour
-      getUniqueStreamLabel: vi.fn((prefix: string) => `[${prefix}_mocklabel]`),
-      addFilter: vi.fn((filterSpec: string) => {}),
+      addInput: mock(() => {}),
+      getInputIndex: mock(() => {}),
+      getUniqueStreamLabel: mock((prefix: string) => `[${prefix}_mocklabel]`),
+      addFilter: mock((filterSpec: string) => {}),
       options: { canvasWidth: MOCK_CANVAS_WIDTH, canvasHeight: MOCK_CANVAS_HEIGHT, fps: 30 },
-    } as any;
+    } as unknown as FilterGraphBuilder;
 
     mockSource = {
       id: 's_color1',
-      // For ColourSourceRenderer, 'url' or 'resolvedPath' is used for the color string
       url: 'red',
-      resolvedPath: 'red', // Let's assume resolvedPath is preferred or url is fallback
+      resolvedPath: 'red',
       kind: 'colour',
     };
 
@@ -42,12 +44,11 @@ describe('ColourSourceRenderer', () => {
       id: 'clip_color1',
       sourceId: 's_color1',
       kind: 'colour',
-      src: 'red', // from source.resolvedPath or source.url
+      src: 'red',
       absoluteStartTime: 0,
       duration: 5,
       zIndex: 1,
-      opacity: 1.0, // Default
-      // No specific x,y,width,height for color clip itself, uses canvas dimensions
+      opacity: 1.0,
     };
   });
 
@@ -65,6 +66,7 @@ describe('ColourSourceRenderer', () => {
 
   describe('addInputs()', () => {
     test('should not call builder.addInput as colours are generated', () => {
+      // No error here, because `mockBuilder` is now of type `FilterGraphBuilder`
       colourRenderer.addInputs(mockBuilder, mockClip, mockSource);
       expect(mockBuilder.addInput).not.toHaveBeenCalled();
     });
@@ -74,9 +76,10 @@ describe('ColourSourceRenderer', () => {
     test('should return correct video filter string and add it to builder', () => {
       mockClip.duration = 10;
       mockClip.opacity = 1.0;
-      mockSource.resolvedPath = 'blue'; // Change color for this test
+      mockSource.resolvedPath = 'blue';
       mockClip.src = 'blue';
 
+      // No error here
       const result = colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
 
       const expectedVideoStreamLabel = `[v_${mockClip.id}_mocklabel]`;
@@ -84,11 +87,12 @@ describe('ColourSourceRenderer', () => {
       expect(result.audio).toBeUndefined();
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
+      // And we can still access .mock without casting
+      const filterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls[0][0];
 
       const expectedColorFilter = `color=c=${mockClip.src}:s=${MOCK_CANVAS_WIDTH}x${MOCK_CANVAS_HEIGHT}:d=${mockClip.duration},format=rgba`;
       expect(filterCall).toStartWith(expectedColorFilter);
-      expect(filterCall).not.toContain('lutalpha'); // Opacity is 1.0
+      expect(filterCall).not.toContain('lutalpha');
       expect(filterCall).toEndWith(expectedVideoStreamLabel);
     });
 
@@ -101,43 +105,43 @@ describe('ColourSourceRenderer', () => {
       colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
+      const filterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls[0][0];
       const expectedColorFilter = `color=c=${mockClip.src}:s=${MOCK_CANVAS_WIDTH}x${MOCK_CANVAS_HEIGHT}:d=${mockClip.duration},format=rgba`;
       expect(filterCall).toStartWith(expectedColorFilter);
       expect(filterCall).toContain(`,lutalpha=val=${mockClip.opacity}`);
     });
 
     test('should use source.url if source.resolvedPath is undefined', () => {
-      mockSource.resolvedPath = undefined;
+      (mockSource as any).resolvedPath = undefined;
       mockSource.url = 'green';
-      mockClip.src = 'green'; // Assuming VideoRenderer sets clip.src from one of these
+      mockClip.src = 'green';
 
       colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
+      const filterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls[0][0];
       expect(filterCall).toContain(`color=c=green`);
     });
 
     test('should default to "black" if both source.resolvedPath and source.url are missing', () => {
-      mockSource.resolvedPath = undefined;
-      mockSource.url = undefined;
-      mockClip.src = 'black'; // Default color
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      (mockSource as any).resolvedPath = undefined;
+      (mockSource as any).url = undefined;
+      mockClip.src = 'black';
+      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
       colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
+      const filterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls[0][0];
       expect(filterCall).toContain(`color=c=black`);
       expect(consoleWarnSpy).toHaveBeenCalled();
       consoleWarnSpy.mockRestore();
     });
 
     test('should return empty object if clip duration is invalid', () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
       mockClip.duration = 0;
       let result = colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
       expect(result).toEqual({});
       expect(mockBuilder.addFilter).not.toHaveBeenCalled();
 
-      vi.mocked(mockBuilder.addFilter).mockClear(); // Clear previous calls for next check
+      (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mockClear();
       mockClip.duration = -2;
       result = colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
       expect(result).toEqual({});
@@ -148,15 +152,15 @@ describe('ColourSourceRenderer', () => {
     });
 
     test('should handle different valid durations', () => {
-      mockClip.duration = 0.5; // Short duration
+      mockClip.duration = 0.5;
       colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      let filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
+      let filterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls[0][0];
       expect(filterCall).toContain(`d=0.5`);
 
-      vi.mocked(mockBuilder.addFilter).mockClear();
-      mockClip.duration = 100; // Long duration
+      (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mockClear();
+      mockClip.duration = 100;
       colourRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
+      filterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls[0][0];
       expect(filterCall).toContain(`d=100`);
     });
   });
