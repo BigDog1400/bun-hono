@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, mock, spyOn, Mock } from 'bun:test';
+import { expect, test, describe, beforeEach, vi } from 'bun:test';
 // Ensure plugin is registered by importing its module
 import '../../../../src/renderer/plugins/effects/fade';
 import { effectRegistry } from '../../../../src/renderer/core/PluginRegistry';
@@ -20,8 +20,8 @@ describe('FadeEffectRenderer', () => {
 
   beforeEach(() => {
     mockBuilder = {
-      getUniqueStreamLabel: mock((prefix: string) => `[${prefix}_mocklabel]`),
-      addFilter: mock((filterSpec: string) => {}),
+      getUniqueStreamLabel: vi.fn((prefix: string) => `[${prefix}_mocklabel]`),
+      addFilter: vi.fn((filterSpec: string) => {}),
       // No options needed for this plugin directly
     } as any;
 
@@ -68,7 +68,7 @@ describe('FadeEffectRenderer', () => {
       expect(result.audio).toBeUndefined();
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as Mock<any>).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       expect(filterCall).toBe(`${inputStreams.video}fade=t=in:st=0:d=1.5[${expectedVideoOut}]`);
     });
 
@@ -82,7 +82,7 @@ describe('FadeEffectRenderer', () => {
       expect(result.video).toBe(expectedVideoOut);
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as Mock<any>).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       const expectedStartTime = mockClip.duration - mockEffect.params.duration; // 10 - 2 = 8
       expect(filterCall).toBe(`${inputStreams.video}fade=t=out:st=${expectedStartTime}:d=2:color=black[${expectedVideoOut}]`);
     });
@@ -98,7 +98,7 @@ describe('FadeEffectRenderer', () => {
       expect(result.video).toBeUndefined();
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as Mock<any>).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       expect(filterCall).toBe(`${inputStreams.audio}afade=t=in:st=0:d=1[${expectedAudioOut}]`);
     });
 
@@ -112,7 +112,7 @@ describe('FadeEffectRenderer', () => {
       expect(result.audio).toBe(expectedAudioOut);
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as Mock<any>).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       const expectedStartTime = mockClip.duration - mockEffect.params.duration; // 10 - 3 = 7
       expect(filterCall).toBe(`${inputStreams.audio}afade=t=out:st=${expectedStartTime}:d=3[${expectedAudioOut}]`);
     });
@@ -128,8 +128,8 @@ describe('FadeEffectRenderer', () => {
       expect(result.audio).toBe(expectedAudioOut);
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(2);
-      const videoFilterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls.find((c: [string]) => c[0].includes('fade=t=in'))![0];
-      const audioFilterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls.find((c: [string]) => c[0].includes('afade=t=in'))![0];
+      const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(c => c[0].includes('fade=t=in'))![0];
+      const audioFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(c => c[0].includes('afade=t=in'))![0];
 
       expect(videoFilterCall).toBe(`${inputStreams.video}fade=t=in:st=0:d=2.5:color=white[${expectedVideoOut}]`);
       expect(audioFilterCall).toBe(`${inputStreams.audio}afade=t=in:st=0:d=2.5[${expectedAudioOut}]`);
@@ -142,18 +142,18 @@ describe('FadeEffectRenderer', () => {
       fadeRenderer.apply(mockBuilder, mockClip, mockEffect, inputStreams);
 
       // Video
-      const videoFilterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls.find((c: [string]) => c[0].includes('fade=t=out'))![0];
+      const videoFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(c => c[0].includes('fade=t=out'))![0];
       // Expected st = Math.max(0, 1 - 2) = 0
       expect(videoFilterCall).toContain(`fade=t=out:st=0:d=2`);
 
       // Audio
-      const audioFilterCall = (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mock.calls.find((c: [string]) => c[0].includes('afade=t=out'))![0];
+      const audioFilterCall = vi.mocked(mockBuilder.addFilter).mock.calls.find(c => c[0].includes('afade=t=out'))![0];
       expect(audioFilterCall).toContain(`afade=t=out:st=0:d=2`);
     });
 
     test('should handle fade duration of 0 by returning original streams and logging warning', () => {
       mockEffect.params.duration = 0;
-      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const result = fadeRenderer.apply(mockBuilder, mockClip, mockEffect, inputStreams);
       expect(result).toEqual(inputStreams); // Original streams returned
@@ -167,7 +167,7 @@ describe('FadeEffectRenderer', () => {
 
     test('should return original streams if effect params are invalid (missing type)', () => {
       mockEffect.params = { duration: 1 }; // Missing 'type'
-      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const result = fadeRenderer.apply(mockBuilder, mockClip, mockEffect, inputStreams);
       expect(result).toEqual(inputStreams); // Original streams
@@ -178,7 +178,7 @@ describe('FadeEffectRenderer', () => {
 
     test('should return original streams if effect params are invalid (missing duration)', () => {
       mockEffect.params = { type: 'in' }; // Missing 'duration'
-      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const result = fadeRenderer.apply(mockBuilder, mockClip, mockEffect, inputStreams);
       expect(result).toEqual(inputStreams); // Original streams
@@ -195,7 +195,7 @@ describe('FadeEffectRenderer', () => {
       expect(result.video).toBeDefined();
       expect(result.audio).toBeUndefined();
 
-      (mockBuilder.addFilter as Mock<(filterSpec: string) => void>).mockClear();
+      vi.mocked(mockBuilder.addFilter).mockClear();
       inputStreams = { audio: '[a_only]' }; // Only audio input
       result = fadeRenderer.apply(mockBuilder, mockClip, mockEffect, inputStreams);
       expect(result.video).toBeUndefined();
