@@ -103,11 +103,23 @@ export class VideoRenderer {
 
       // Process clips to generate filter segments
       for (const clip of timeline.clips) {
-        const source = timeline.sources.find(s => s.id === clip.sourceId);
+        // Find the source using sourceIdRef from the clip and uniqueId from the CTSource
+        const source = (timeline.processedSources || []).find(s => s.uniqueId === clip.sourceIdRef);
         if (!source) {
-          console.warn(`VideoRenderer: Source with ID ${clip.sourceId} not found for clip ${clip.id}. Skipping clip.`);
+          // If source not found by sourceIdRef, it might be an older format or error in timeline construction.
+          // As a fallback, try to find by clip.src if sourceIdRef failed, though this is less robust.
+          // console.warn(`VideoRenderer: Source for clip ${clip.id} (sourceIdRef: ${clip.sourceIdRef}) not found by uniqueId. This might indicate an issue.`);
+          // For now, strictly use sourceIdRef as per CTClip definition.
+          console.warn(`VideoRenderer: Source with uniqueId ${clip.sourceIdRef} not found in processedSources for clip ${clip.id}. Skipping clip.`);
           continue;
         }
+
+        // --- BEGIN Diagnostic Logging ---
+        // console.log(`Attempting to find plugin for clip: ${clip.id}, sourceIdRef: ${clip.sourceIdRef}`);
+        // console.log('Found source for clip:', JSON.stringify(source));
+        // console.log(`Looking for source.kind: "${source.kind}"`);
+        // console.log('Available source kinds in registry:', JSON.stringify(Array.from(sourceRegistry.plugins.keys()))); // Corrected log
+        // --- END Diagnostic Logging ---
 
         const sourcePlugin = sourceRegistry.get(source.kind); // or clip.kind if more specific
         if (!sourcePlugin) {

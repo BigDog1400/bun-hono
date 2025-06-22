@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { VideoRenderer, RendererOptions } from '../../../src/renderer/core/VideoRenderer';
 import { LayoutV1, LayoutDocument } from '../../../src/renderer/schema/layout-v1'; // Zod schema for parsing
+import '../../../src/renderer/plugins'; // Import to ensure plugins are registered
 
 // --- IMPORTANT NOTE FOR THIS TEST SUITE ---
 // This regression test suite RELIES ON:

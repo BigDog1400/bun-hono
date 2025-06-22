@@ -92,10 +92,14 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
   const processAndRegisterSource = (sourceV1: SourceV1, contextId?: string): CTSource => {
     const sourceUniqueId = sourceV1.id || `gen_source_${contextId || ''}_${sourceCounter++}`;
     const ctSource: CTSource = {
-      ...sourceV1,
+      ...sourceV1, // This will copy src (url), kind, etc.
       uniqueId: sourceUniqueId,
-      resolvedPath: sourceV1.src,
+      // Set resolvedPath to src ONLY IF it's not a color source.
+      // For color sources, resolvedPath should be undefined as they are not files.
+      // The actual color string is available via sourceV1.src (copied to ctSource.src/ctSource.url).
+      resolvedPath: sourceV1.kind === 'colour' ? undefined : (sourceV1.src || sourceV1.url),
     };
+    // console.log('Processing CTSource:', JSON.stringify(ctSource)); // Removed diagnostic log
     processedSources.push(ctSource);
     return ctSource;
   };
@@ -179,8 +183,64 @@ export async function convertToCanonicalTimeline(doc: LayoutV1): Promise<Canonic
       });
     };
 
-    processBlockSourceElements(blockDef.visuals, 'vis', Z_BLOCK_BASE + blockIndex * 10); // Adjusted base Z for blocks
-    processBlockSourceElements(blockDef.audio, 'aud', 0);
+    // Check if block uses sourceId to reference a global source
+    if (blockDef.sourceId) {
+      const globalSourceV1 = doc.sources?.find(s => s.id === blockDef.sourceId);
+      if (globalSourceV1) {
+        const processedElementSource = processAndRegisterSource(globalSourceV1, `${blockDef.id}_ref`);
+
+        let elDuration = blockDef.duration ?? processedElementSource.duration;
+        const elStartTime = blockDef.start ?? 0; // 'start' on block is like 'at' for the element
+
+        if (elDuration === undefined || elDuration === null || elDuration <= 0) {
+          if (processedElementSource.kind === 'video' || processedElementSource.kind === 'audio') {
+            // Try to get duration from source's own metadata if available (e.g. video file length)
+            // This part (`durationFromSource`) isn't explicitly in SourceV1, assuming it implies probing or pre-knowledge
+            // For now, if not on processedElementSource.duration, then need block or default
+             if (processedElementSource.duration && processedElementSource.duration > 0) {
+                elDuration = processedElementSource.duration;
+            } else if (blockExplicitDuration && (blockExplicitDuration - elStartTime) > 0) {
+                elDuration = blockExplicitDuration - elStartTime;
+            } else {
+                console.warn(`Referenced source ${processedElementSource.uniqueId} in block ${blockDef.id} is ${processedElementSource.kind} but has no duration, and block has no explicit duration to derive it. Skipping.`);
+                // continue to next block element processing or skip block? For now, this element is skipped.
+            }
+          } else { // image or colour
+            elDuration = (blockExplicitDuration && (blockExplicitDuration - elStartTime) > 0)
+                         ? (blockExplicitDuration - elStartTime)
+                         : DEFAULT_BLOCK_DURATION_FOR_STATIC_CONTENT;
+          }
+        }
+
+        if (elDuration && elDuration > 0) {
+            const clip: CTClip = {
+              id: processedElementSource.id || `${blockDef.id}_ref_clip`, // Use blockDef.id for clip id if source had no id
+              sourceIdRef: processedElementSource.uniqueId,
+              kind: processedElementSource.kind,
+              src: processedElementSource.src,
+              absoluteStartTime: blockStartTime + elStartTime,
+              duration: elDuration,
+              zIndex: Z_BLOCK_BASE + blockIndex * 10, // Base Z for this block's referenced source
+              opacity: processedElementSource.opacity ?? 100,
+              resizeMode: processedElementSource.resize ?? (processedElementSource.kind === 'video' || processedElementSource.kind === 'image' ? 'fill' : undefined),
+              volume: processedElementSource.volume ?? 100,
+            };
+            mapSourcePropsToClip(clip, processedElementSource); // Apply x,y,w,h etc. from source
+            // Override with block-level x,y,w,h if they exist on blockDef? Schema doesn't show them on BlockV1.
+            clips.push(clip);
+            maxEndTimeInBlock = Math.max(maxEndTimeInBlock, clip.absoluteStartTime + clip.duration);
+        } else if (elDuration <= 0) {
+             console.warn(`Referenced source ${processedElementSource.uniqueId} in block ${blockDef.id} has invalid calculated duration ${elDuration}. Skipping.`);
+        }
+
+      } else {
+        console.warn(`Block ${blockDef.id} references sourceId "${blockDef.sourceId}" but it was not found in doc.sources.`);
+      }
+    } else {
+      // Process inline visuals and audio only if sourceId is not used for the block's main content
+      processBlockSourceElements(blockDef.visuals, 'vis', Z_BLOCK_BASE + blockIndex * 10);
+      processBlockSourceElements(blockDef.audio, 'aud', 0); // Audio zIndex might need thought
+    }
 
     if (blockExplicitDuration !== undefined && blockExplicitDuration !== null && blockExplicitDuration > 0) {
         accumulatedBlockTime = blockStartTime + blockExplicitDuration;
