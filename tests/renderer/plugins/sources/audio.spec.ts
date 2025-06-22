@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, mock, spyOn, type Mock } from 'bun:test';
+import { expect, test, describe, beforeEach, vi } from 'bun:test';
 // Ensure plugin is registered by importing its module
 import '../../../../src/renderer/plugins/sources/audio';
 import { sourceRegistry } from '../../../../src/renderer/core/PluginRegistry';
@@ -14,31 +14,25 @@ if (!AudioSourceRendererInstance) {
 const audioRenderer = AudioSourceRendererInstance;
 
 describe('AudioSourceRenderer', () => {
-  // Declare the mockBuilder with the real, full type
   let mockBuilder: FilterGraphBuilder;
   let mockClip: CTClip;
   let mockSource: CTSource;
 
-  // Define reusable types for our mocks to keep casting clean
-  type AddFilterMock = Mock<(filterSpec: string) => void>;
-  type GetInputIndexMock = Mock<(filePath: string) => number | undefined>;
-
   beforeEach(() => {
-    // Create a partial mock object with bun's native `mock()` and cast it once
     mockBuilder = {
-      addInput: mock((filePath: string) => 0),
-      getInputIndex: mock((filePath: string) => 0),
-      getUniqueStreamLabel: mock((prefix: string) => `[${prefix}_mocklabel]`),
-      addFilter: mock((filterSpec: string) => {}),
-      options: {},
-    } as unknown as FilterGraphBuilder;
+      addInput: vi.fn((filePath: string) => 0),
+      getInputIndex: vi.fn((filePath: string) => 0),
+      getUniqueStreamLabel: vi.fn((prefix: string) => `[${prefix}_mocklabel]`),
+      addFilter: vi.fn((filterSpec: string) => {}),
+      options: {}, // Not typically used by audio renderer for canvas dims
+    } as any;
 
     mockSource = {
       id: 's_audio1',
       url: 'path/to/audio.mp3',
       resolvedPath: 'path/to/audio.mp3',
       kind: 'audio',
-      duration: 60,
+      duration: 60, // Default duration for source
     };
 
     mockClip = {
@@ -47,9 +41,10 @@ describe('AudioSourceRenderer', () => {
       kind: 'audio',
       src: 'path/to/audio.mp3',
       absoluteStartTime: 0,
-      duration: 30,
+      duration: 30, // Clip duration might be different from source
       zIndex: 1,
-      volume: 100,
+      volume: 100, // Default volume (maps to 1.0 in filter)
+                  // The plugin expects 0-100, then divides by 100.
     };
   });
 
@@ -66,11 +61,12 @@ describe('AudioSourceRenderer', () => {
     });
 
     test('should return placeholder duration and log warning if source.duration is missing', async () => {
-      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const sourceWithoutDuration = { ...mockSource, duration: undefined };
 
       const result = await audioRenderer.probe(sourceWithoutDuration as CTSource);
 
+      // The implementation returns { duration: 60 } as placeholder
       expect(result).toEqual({ duration: 60 });
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         `AudioSourceRenderer: Probe for ${sourceWithoutDuration.id} - duration not available in source, returning placeholder 60s.`
@@ -87,7 +83,7 @@ describe('AudioSourceRenderer', () => {
     });
 
     test('should not call builder.addInput and log warning if source.resolvedPath is missing', () => {
-      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const sourceWithoutPath = { ...mockSource, resolvedPath: undefined };
 
       audioRenderer.addInputs(mockBuilder, mockClip, sourceWithoutPath as CTSource);
@@ -102,8 +98,7 @@ describe('AudioSourceRenderer', () => {
 
   describe('getFilter()', () => {
     beforeEach(() => {
-      // Set the mock's return value by casting the specific method to its Mock type
-      (mockBuilder.getInputIndex as GetInputIndexMock).mockReturnValue(0);
+      vi.mocked(mockBuilder.getInputIndex).mockReturnValue(0); // Assume input index 0
     });
 
     test('should return correct audio filter string with volume and add it to builder', () => {
@@ -115,45 +110,52 @@ describe('AudioSourceRenderer', () => {
       expect(result.video).toBeUndefined();
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
 
       expect(filterCall).toBe(`[0:a]volume=0.5[${expectedAudioStreamLabel}]`);
     });
 
-    test('should use "anull" if volume is 100 (or undefined)', () => {
+    test('should use "anull" if volume is 100 (or undefined, implying default 1.0)', () => {
+      // Test case 1: volume is 100
       mockClip.volume = 100;
       let result = audioRenderer.getFilter(mockBuilder, mockClip, mockSource);
       let expectedAudioStreamLabel = `[a_${mockClip.id}_mocklabel]`;
       expect(result.audio).toBe(expectedAudioStreamLabel);
-      let filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      let filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       expect(filterCall).toBe(`[0:a]anull[${expectedAudioStreamLabel}]`);
 
-      (mockBuilder.addFilter as AddFilterMock).mockClear();
+      vi.mocked(mockBuilder.addFilter).mockClear(); // Clear for next sub-test
 
+      // Test case 2: volume is undefined (should also default to 1.0 -> anull)
+      // The CTClip type doesn't make volume optional, but if it were, this would be the test.
+      // The current plugin code: `const volume = typeof clip.volume === 'number' ? clip.volume / 100 : 1.0;`
+      // So if clip.volume is not a number (e.g. undefined), it defaults to 1.0.
+      // Let's simulate clip.volume being something else or undefined if the type allowed
       const clipWithMissingVolume = { ...mockClip, volume: undefined } as any;
       result = audioRenderer.getFilter(mockBuilder, clipWithMissingVolume, mockSource);
-      expectedAudioStreamLabel = `[a_${clipWithMissingVolume.id}_mocklabel]`;
-      filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      expectedAudioStreamLabel = `[a_${clipWithMissingVolume.id}_mocklabel]`; // Label will change due to different clip id if mock not reset
+      filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       expect(filterCall).toBe(`[0:a]anull[${expectedAudioStreamLabel}]`);
     });
 
     test('should handle volume 0 correctly', () => {
-      mockClip.volume = 0;
+      mockClip.volume = 0; // Mute
       audioRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      const filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       expect(filterCall).toContain('volume=0');
     });
 
-    test('should handle volume values between 0 and 100', () => {
+    test('should handle volume values between 0 and 100 (e.g. 75 -> 0.75)', () => {
       mockClip.volume = 75;
       audioRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      const filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       expect(filterCall).toContain('volume=0.75');
     });
 
+
     test('should return empty object if inputIndex is undefined', () => {
-      (mockBuilder.getInputIndex as GetInputIndexMock).mockReturnValue(undefined);
-      const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+      vi.mocked(mockBuilder.getInputIndex).mockReturnValue(undefined);
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const result = audioRenderer.getFilter(mockBuilder, mockClip, mockSource);
 

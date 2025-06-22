@@ -1,62 +1,69 @@
-import { expect, test, describe, beforeEach, mock, spyOn, type Mock } from 'bun:test';
+import { expect, test, describe, beforeEach, mock, vi } from 'bun:test';
 // Ensure plugin is registered by importing its module
 import '../../../../src/renderer/plugins/sources/image';
 import { sourceRegistry } from '../../../../src/renderer/core/PluginRegistry';
-import { FilterGraphBuilder } from '../../../../src/renderer/core/FilterGraphBuilder';
+import { FilterGraphBuilder, RendererOptions } from '../../../../src/renderer/core/FilterGraphBuilder';
 import { CTClip, CTSource } from '../../../../src/renderer/core/CanonicalTimeline';
+// Import the class directly to test its methods, registry check is separate
+// Assuming image.ts exports the class:
+// import ImageSourceRenderer from '../../../../src/renderer/plugins/sources/image';
+// However, plugins self-register, so we get the instance from the registry.
 
 const ImageSourceRendererInstance = sourceRegistry.get('image');
 
 if (!ImageSourceRendererInstance) {
+  // This would mean the plugin didn't self-register or kind is wrong.
+  // Throw error to halt tests if plugin isn't found, as it's crucial for the suite.
   throw new Error("ImageSourceRenderer not found in sourceRegistry. Ensure it's imported and self-registered.");
 }
-const imageRenderer = ImageSourceRendererInstance;
+const imageRenderer = ImageSourceRendererInstance; // Type assertion might be needed if registry.get returns base type
 
 describe('ImageSourceRenderer', () => {
-  // Declare mockBuilder with the real, full type
+
   let mockBuilder: FilterGraphBuilder;
   let mockClip: CTClip;
   let mockSource: CTSource;
-
-  // Define reusable types for our mocks to keep the code clean
-  type AddFilterMock = Mock<(filterSpec: string) => void>;
-  type GetInputIndexMock = Mock<(filePath: string) => number | undefined>;
 
   const MOCK_CANVAS_WIDTH = 1280;
   const MOCK_CANVAS_HEIGHT = 720;
   const MOCK_FPS = 30;
 
   beforeEach(() => {
-    // Create a partial mock object with bun's `mock()` and cast it once to the full type.
+    // Mock FilterGraphBuilder
+    // We need to mock all methods that the plugin calls
     mockBuilder = {
-      addInput: mock((filePath: string) => 0),
-      getInputIndex: mock((filePath: string) => 0),
-      getUniqueStreamLabel: mock((prefix: string) => `[${prefix}_mocklabel]`),
-      addFilter: mock((filterSpec: string) => {}),
+      addInput: vi.fn((filePath: string) => 0), // Assume input index 0 for simplicity
+      getInputIndex: vi.fn((filePath: string) => 0),
+      getUniqueStreamLabel: vi.fn((prefix: string) => `[${prefix}_mocklabel]`),
+      addFilter: vi.fn((filterSpec: string) => {}),
+      // Provide options as the plugin uses builder.options for canvas dimensions
       options: { canvasWidth: MOCK_CANVAS_WIDTH, canvasHeight: MOCK_CANVAS_HEIGHT, fps: MOCK_FPS },
-    } as unknown as FilterGraphBuilder;
+    } as any; // Cast to any to allow mocking only subset of methods / properties
 
     mockSource = {
       id: 's_img1',
       url: 'path/to/image.png',
       resolvedPath: 'path/to/image.png',
       kind: 'image',
+      // other source props if needed by plugin
     };
 
     mockClip = {
       id: 'clip_img1',
       sourceId: 's_img1',
-      kind: 'image',
-      src: 'path/to/image.png',
+      kind: 'image', // Should match renderer kind
+      src: 'path/to/image.png', // From source.resolvedPath
       absoluteStartTime: 0,
-      duration: 5,
+      duration: 5, // Default test duration
       zIndex: 1,
-      width: 0.5,
-      height: 0.5,
+      // Visual props (assuming flat structure on clip for testing, or adjust as per CTClip definition)
+      width: 0.5, // relative to canvas
+      height: 0.5, // relative to canvas
       x: 0.1,
       y: 0.1,
-      opacity: 1.0,
+      opacity: 1.0, // Default, test with < 1.0 as well
       resizeMode: 'cover',
+      // inputIndex: 0, // This would be set by VideoRenderer after calling addInputs
     };
   });
 
@@ -81,7 +88,7 @@ describe('ImageSourceRenderer', () => {
 
     test('should not call builder.addInput if source.resolvedPath is missing', () => {
       const sourceWithoutPath = { ...mockSource, resolvedPath: undefined };
-      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {}); // Suppress warning
       imageRenderer.addInputs(mockBuilder, mockClip, sourceWithoutPath as CTSource);
       expect(mockBuilder.addInput).not.toHaveBeenCalled();
       consoleWarnSpy.mockRestore();
@@ -90,15 +97,16 @@ describe('ImageSourceRenderer', () => {
 
   describe('getFilter()', () => {
     beforeEach(() => {
-      // Set the mock's return value by casting the specific method to its Mock type
-      (mockBuilder.getInputIndex as GetInputIndexMock).mockReturnValue(0);
+      // Simulate that addInputs has been called and inputIndex is available via builder
+      vi.mocked(mockBuilder.getInputIndex).mockReturnValue(0);
     });
 
     test('should return correct video filter string and add it to builder', () => {
       mockClip.duration = 10;
       mockClip.opacity = 1.0;
-      const expectedScaleW = Math.floor(mockClip.width! * MOCK_CANVAS_WIDTH);
-      const expectedScaleH = Math.floor(mockClip.height! * MOCK_CANVAS_HEIGHT);
+      // Expected scale dimensions based on clip.width/height and mock canvas dimensions
+      const expectedScaleW = Math.floor(mockClip.width! * MOCK_CANVAS_WIDTH); // 0.5 * 1280 = 640
+      const expectedScaleH = Math.floor(mockClip.height! * MOCK_CANVAS_HEIGHT); // 0.5 * 720 = 360
 
       const result = imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
 
@@ -107,11 +115,11 @@ describe('ImageSourceRenderer', () => {
       expect(result.audio).toBeUndefined();
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
 
       expect(filterCall).toContain(`[0:v]loop=loop=-1:size=1,trim=duration=${mockClip.duration},setpts=PTS-STARTPTS`);
       expect(filterCall).toContain(`scale=${expectedScaleW}:${expectedScaleH},setsar=1`);
-      expect(filterCall).not.toContain('lutalpha');
+      expect(filterCall).not.toContain('lutalpha'); // Opacity is 1.0
       expect(filterCall).toEndWith(expectedVideoStreamLabel);
     });
 
@@ -124,7 +132,7 @@ describe('ImageSourceRenderer', () => {
       imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
 
       expect(filterCall).toContain(`scale=${expectedScaleW}:${expectedScaleH},setsar=1`);
       expect(filterCall).toContain(`format=rgba,lutalpha=val=${mockClip.opacity}`);
@@ -138,31 +146,27 @@ describe('ImageSourceRenderer', () => {
       imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
 
       expect(mockBuilder.addFilter).toHaveBeenCalledTimes(1);
-      const filterCall = (mockBuilder.addFilter as AddFilterMock).mock.calls[0][0];
+      const filterCall = vi.mocked(mockBuilder.addFilter).mock.calls[0][0];
       expect(filterCall).toContain(`scale=${MOCK_CANVAS_WIDTH}:${MOCK_CANVAS_HEIGHT},setsar=1`);
     });
 
     test('should return empty object if clip duration is invalid', () => {
-      const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
-      
       mockClip.duration = 0;
-      let result = imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const result = imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
       expect(result).toEqual({});
-      
-      mockClip.duration = -1;
-      result = imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      expect(result).toEqual({});
-
       expect(mockBuilder.addFilter).not.toHaveBeenCalled();
       consoleWarnSpy.mockRestore();
+
+      mockClip.duration = -1;
+      const resultNegative = imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
+      expect(resultNegative).toEqual({});
     });
 
     test('should return empty object if inputIndex is undefined', () => {
-      (mockBuilder.getInputIndex as GetInputIndexMock).mockReturnValue(undefined);
-      const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
-
+      vi.mocked(mockBuilder.getInputIndex).mockReturnValue(undefined);
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const result = imageRenderer.getFilter(mockBuilder, mockClip, mockSource);
-      
       expect(result).toEqual({});
       expect(mockBuilder.addFilter).not.toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
